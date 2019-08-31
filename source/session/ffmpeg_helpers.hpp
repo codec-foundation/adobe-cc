@@ -14,7 +14,6 @@ extern"C"
 
 typedef std::array<char, 4> FileFormat;
 typedef std::array<char, 4> VideoFormat;
-typedef std::array<char, 31> VideoEncoderName;
 typedef std::function<void ()> MovieOpenCallback;                               // throws error on fail
 typedef std::function<void ()> MovieOpenForWriteCallback;
 typedef std::function<size_t(uint8_t*, int size)> MovieReadCallback;            // return 0 on success, -ve on failure

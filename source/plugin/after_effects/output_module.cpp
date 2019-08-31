@@ -178,7 +178,7 @@ static std::unique_ptr<Exporter> createExporter(
     UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
 
     std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        encoder->subType(), encoder->name(),
+        subType, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
         frameRateNumerator, frameRateDenominator,
