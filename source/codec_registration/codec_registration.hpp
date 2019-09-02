@@ -263,8 +263,9 @@ struct CodecDetails
     std::string videoFileExt;
     FileFormat fileFormat;
     VideoFormat videoFormat;
-    CodecNamedSubTypes subtypes;      // leave empty for no subtypes
+    CodecNamedSubTypes subtypes;     // leave empty for no subtypes
     CodecSubType defaultSubType;
+    bool isHighBitDepth;             // should host expect high bit depth from this codec
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
     QualityCodecDetails quality;
@@ -299,8 +300,6 @@ public:
     // codec properties
     static const CodecDetails& details();
     static int getPixelFormatSize(bool hasSubType, CodecSubType subType); // !!! for bitrate calculation; should be moved to encoder
-
-    static bool isHighBitDepth();       // should host expect high bit depth from this codec
 
     // as much information about the codec that will be doing the job as possible - eg gpu vs cpu, codebase etc
     // for output to log

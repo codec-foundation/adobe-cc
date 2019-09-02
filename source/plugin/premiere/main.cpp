@@ -435,7 +435,7 @@ void exportLoop(exDoExportRec* exportInfoP, prMALError& error)
 
     renderParams.inRenderParamsSize = sizeof(ExportLoopRenderParams);
     renderParams.inRenderParamsVersion = kPrSDKExporterUtilitySuiteVersion;
-    renderParams.inFinalPixelFormat = CodecRegistry().isHighBitDepth()
+    renderParams.inFinalPixelFormat = CodecRegistry::codec()->details().isHighBitDepth
         ? PrPixelFormat_BGRA_4444_16u // PrPixelFormat_BGRA_4444_32f
         : PrPixelFormat_BGRA_4444_8u;
     renderParams.inStartTime = exportInfoP->startTime;
@@ -509,7 +509,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     //!!!
     int clampedQuality = std::clamp(quality.value.intValue, 1, 5);
 
-    ChannelFormat channelFormat(CodecRegistry::isHighBitDepth() ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
+    ChannelFormat channelFormat(codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
     FrameFormat format(channelFormat | FrameOrigin_BottomLeft | ChannelLayout_BGRA);
     FrameDef frameDef(width.value.intValue, height.value.intValue, format);
 
