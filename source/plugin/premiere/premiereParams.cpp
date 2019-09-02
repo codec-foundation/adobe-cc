@@ -140,7 +140,7 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
             exportParamSuite->AddParam(exporterPluginID, mgroupIndex, codec.details().premiereGroupName.c_str(), &chunkCountParam);
         }
 
-        if (codec.hasQuality(codec.details().defaultSubType))
+        if (codec.details().hasQualityForSubType(codec.details().defaultSubType))
         {
             exNewParamInfo qualityParam;
             exParamValues qualityValues;
@@ -148,13 +148,13 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
             qualityParam.paramType = exParamType_int;
             qualityParam.flags = exParamFlag_none;
 
-            auto qualities = CodecRegistry::qualityDescriptions();
+            auto qualities = codec.details().quality.descriptions;
             int worst = qualities.begin()->first;
             int best = qualities.rbegin()->first;
 
             qualityValues.rangeMin.intValue = worst;
             qualityValues.rangeMax.intValue = best;
-            qualityValues.value.intValue = CodecRegistry::defaultQuality();
+            qualityValues.value.intValue = codec.details().quality.defaultQuality;
             qualityValues.disabled = kPrFalse;
             qualityValues.hidden = kPrFalse;
             qualityParam.paramValues = qualityValues;
@@ -258,9 +258,9 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
         settings->exportParamSuite->AddConstrainedValuePair(exID, 0, ADBEVideoFPS, &tempFrameRate, StringForPr(frameRateStrings[i]));
     }
 
-    if (CodecRegistry::hasQualityForAnySubType()) {
+    if (codec.details().quality.hasQualityForAnySubType) {
         settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoQuality, StringForPr(STR_QUALITY));
-        auto qualities = CodecRegistry::qualityDescriptions();
+        auto qualities = codec.details().quality.descriptions;
         int worst = qualities.begin()->first;
         int best = qualities.rbegin()->first;
 
@@ -286,7 +286,7 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
             const auto codecSubtype = reinterpret_cast<CodecSubType&>(subCodecTypeParam.value.intValue);
 
             exParamValues qualityToValidate;
-            bool enableQuality = codec.hasQuality(codecSubtype);
+            bool enableQuality = codec.details().hasQualityForSubType(codecSubtype);
             settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoQuality, &qualityToValidate);
             qualityToValidate.disabled = !enableQuality;
             settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoQuality, &qualityToValidate);

@@ -27,7 +27,7 @@ struct OutputOptions
 {
     OutputOptions()
         : subType{ CodecRegistry::codec()->details().defaultSubType },
-          quality(CodecRegistry::defaultQuality()),
+          quality(CodecRegistry::codec()->details().quality.defaultQuality),
           chunkCount(0)
     {}
     ~OutputOptions() {}
@@ -49,7 +49,7 @@ void to_json(json& j, const OutputOptions& o) {
     if (hasSubTypes) {
         j["subType"] = o.subType;
     }
-    if (codec.hasQuality(o.subType)) {
+    if (codec.details().hasQualityForSubType(o.subType)) {
         j["quality"] = o.quality;
     };
     if (codec.details().hasChunkCount) {
@@ -64,7 +64,7 @@ void from_json(const json& j, OutputOptions& o) {
     {
         j.at("subType").get_to(o.subType);
     }
-    if (codec.hasQuality(o.subType)) {
+    if (codec.details().hasQualityForSubType(o.subType)) {
         j.at("quality").get_to(o.quality);
     }
     if (codec.details().hasChunkCount) {
@@ -388,9 +388,8 @@ AEIO_GetOutputInfo(
         return A_Err_PARAMETER;
 
     std::string description(codecTypeName);
-    if (codec.hasQualityForAnySubType()) {
-        if (!hasSubtypes || codec.hasQuality(optionsUP->subType))
-            description += std::string("\rQuality setting: ") + CodecRegistry::codec()->qualityDescriptions()[optionsUP->quality];
+    if (codec.details().hasQualityForSubType(optionsUP->subType)) {
+        description += std::string("\rQuality setting: ") + codec.details().quality.descriptions.at(optionsUP->quality);
     }
 
     if (codec.details().hasChunkCount)

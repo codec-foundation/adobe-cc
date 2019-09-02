@@ -247,6 +247,14 @@ typedef std::unique_ptr<Decoder, std::function<void(Decoder *)>> UniqueDecoder;
 typedef std::pair<CodecSubType, std::string> CodecNamedSubType;
 typedef std::vector<CodecNamedSubType> CodecNamedSubTypes;
 
+struct QualityCodecDetails {
+    bool hasQualityForAnySubType;
+    std::map<CodecSubType, bool> presentForSubType;
+    // qualities are ordered integers, not necessarily starting at 0 nor contiguous
+    std::map<int, std::string> descriptions;
+    int defaultQuality;
+};
+
 struct CodecDetails
 {
     std::string productName;         // could be '<product> by <entity>'
@@ -259,6 +267,7 @@ struct CodecDetails
     CodecSubType defaultSubType;
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
+    QualityCodecDetails quality;
     std::string premiereGroupName;               // Adobe Premiere group name for storage
     std::string premiereIncludeAlphaChannelName; // Adobe Premiere include alpha channel for storage(backwards compat)
     std::string premiereChunkCountName;          // Adobe Premiere chunk count name for storage (backwards compat)
@@ -266,6 +275,16 @@ struct CodecDetails
     uint32_t afterEffectsCreator;   // other AEX reg info - _not_ exactly sure how this is is used by AEX
     uint32_t afterEffectsType;      // ditto
     uint32_t afterEffectsMacType;   // ditto
+
+    // helpers
+    bool hasSubTypes() const {
+        return subtypes.size() != 0;
+    }
+
+    bool hasQualityForSubType(CodecSubType subType) const {
+        return  quality.hasQualityForAnySubType
+            && (!hasSubTypes() || quality.presentForSubType.at(subType));
+    }
 };
 
 class CodecRegistry {
@@ -286,14 +305,6 @@ public:
     // as much information about the codec that will be doing the job as possible - eg gpu vs cpu, codebase etc
     // for output to log
     static std::string logName();
-
-    // quality settings
-
-    // qualities are ordered integers, not necessarily starting at 0 nor contiguous
-    static bool hasQualityForAnySubType();
-    static bool hasQuality(const CodecSubType& subtype);
-    static std::map<int, std::string> qualityDescriptions();
-    static int defaultQuality();
 
     //!!! should be private
     CodecRegistry();
