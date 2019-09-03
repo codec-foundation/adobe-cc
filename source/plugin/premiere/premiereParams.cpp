@@ -189,7 +189,7 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
         channelTypeParam.paramValues = channelTypeValues;
         exportParamSuite->AddParam(exporterPluginID, mgroupIndex, ADBEBasicAudioGroup, &channelTypeParam);
 
-        exportParamSuite->SetParamsVersion(exporterPluginID, 6);
+        exportParamSuite->SetParamsVersion(exporterPluginID, codec.details().premiereParamsVersion);
     }
 
     return result;

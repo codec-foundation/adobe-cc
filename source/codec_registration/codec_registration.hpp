@@ -269,6 +269,7 @@ struct CodecDetails
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
     QualityCodecDetails quality;
+    uint32_t premiereParamsVersion;              // Adobe Premiere parameters version
     std::string premiereGroupName;               // Adobe Premiere group name for storage
     std::string premiereIncludeAlphaChannelName; // Adobe Premiere include alpha channel for storage(backwards compat)
     std::string premiereChunkCountName;          // Adobe Premiere chunk count name for storage (backwards compat)
