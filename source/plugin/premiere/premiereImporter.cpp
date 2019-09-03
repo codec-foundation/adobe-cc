@@ -636,8 +636,8 @@ ImporterGetIndFormat(
         strcpy_s(indFormatRec->FormatShortName, sizeof (indFormatRec->FormatShortName), codec.details().fileFormatShortName.c_str());        // The short (menu name) of the importer
         strcpy_s(indFormatRec->PlatformExtension, sizeof (indFormatRec->PlatformExtension), platformXten);  // The 3 letter extension
         #else
-        strcpy(indFormatRec->FormatName, CodecRegistry::codec.details().fileFormatName.c_str());            // The Long name of the importer
-        strcpy(indFormatRec->FormatShortName, CodecRegistry::codec.details().fileFormatShortName.c_str());  // The short (menu name) of the importer
+        strcpy(indFormatRec->FormatName, codec.details().fileFormatName.c_str());            // The Long name of the importer
+        strcpy(indFormatRec->FormatShortName, codec.details().fileFormatShortName.c_str());  // The short (menu name) of the importer
         strcpy(indFormatRec->PlatformExtension, platformXten);   // The 3 letter extension
         #endif
 
