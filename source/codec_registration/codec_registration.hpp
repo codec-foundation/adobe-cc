@@ -82,13 +82,13 @@ enum CodecAlpha
     withAlpha = 1
 };
 
-typedef std::array<char, 4> CodecSubType;
+typedef std::array<char, 4> Codec4CC;
 typedef std::array<unsigned int, 2> HapChunkCounts;  //!!! move this
 
 struct EncoderParametersBase {
-    EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, bool hasSubType_, CodecSubType subType_,
+    EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, Codec4CC codec4CC_,
                           bool hasChunkCount_, HapChunkCounts chunkCounts_, int quality_)
-        : frameDef(frameDef_), alpha(alpha_), hasSubType(hasSubType_), subType(subType_),
+        : frameDef(frameDef_), alpha(alpha_), codec4CC(codec4CC_),
           hasChunkCount(hasChunkCount_), chunkCounts(chunkCounts_), quality(quality_) {}
     virtual ~EncoderParametersBase() {}
 
@@ -99,8 +99,7 @@ struct EncoderParametersBase {
 
     FrameDef frameDef;
     CodecAlpha alpha;
-    bool hasSubType;
-    CodecSubType subType;
+    Codec4CC codec4CC;
     bool hasChunkCount;
     HapChunkCounts chunkCounts; //!!! move this
     int quality;
@@ -244,12 +243,12 @@ private:
 typedef std::unique_ptr<Encoder, std::function<void(Encoder *)>> UniqueEncoder;
 typedef std::unique_ptr<Decoder, std::function<void(Decoder *)>> UniqueDecoder;
 
-typedef std::pair<CodecSubType, std::string> CodecNamedSubType;
+typedef std::pair<Codec4CC, std::string> CodecNamedSubType;
 typedef std::vector<CodecNamedSubType> CodecNamedSubTypes;
 
 struct QualityCodecDetails {
     bool hasQualityForAnySubType;
-    std::map<CodecSubType, bool> presentForSubType;
+    std::map<Codec4CC, bool> presentForSubType;
     // qualities are ordered integers, not necessarily starting at 0 nor contiguous
     std::map<int, std::string> descriptions;
     int defaultQuality;
@@ -264,7 +263,7 @@ struct CodecDetails
     FileFormat fileFormat;
     VideoFormat videoFormat;
     CodecNamedSubTypes subtypes;     // leave empty for no subtypes
-    CodecSubType defaultSubType;
+    Codec4CC defaultSubType;
     bool isHighBitDepth;             // should host expect high bit depth from this codec
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
@@ -283,7 +282,7 @@ struct CodecDetails
         return subtypes.size() != 0;
     }
 
-    bool hasQualityForSubType(CodecSubType subType) const {
+    bool hasQualityForSubType(Codec4CC subType) const {
         return  quality.hasQualityForAnySubType
             && (!hasSubTypes() || quality.presentForSubType.at(subType));
     }
@@ -300,7 +299,7 @@ public:
 
     // codec properties
     static const CodecDetails& details();
-    static int getPixelFormatSize(bool hasSubType, CodecSubType subType); // !!! for bitrate calculation; should be moved to encoder
+    static int getPixelFormatSize(bool hasSubType, Codec4CC subType); // !!! for bitrate calculation; should be moved to encoder
 
     // as much information about the codec that will be doing the job as possible - eg gpu vs cpu, codebase etc
     // for output to log

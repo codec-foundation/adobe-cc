@@ -32,7 +32,7 @@ struct OutputOptions
     {}
     ~OutputOptions() {}
 
-    CodecSubType subType;
+    Codec4CC     subType;
     int          quality;
     int          chunkCount;
 
@@ -159,7 +159,7 @@ static MovieFile createMovieFile(const std::string &filename,
 
 
 static std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, bool hasCodecSubType, CodecSubType subType, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
+    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
     int64_t frameRateNumerator, int64_t frameRateDenominator,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
@@ -170,7 +170,7 @@ static std::unique_ptr<Exporter> createExporter(
     std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
         frameDef,
         alpha,
-        hasCodecSubType, subType,
+        videoFormat,
         hasChunkCount, chunkCounts,
         quality
         );
@@ -178,7 +178,7 @@ static std::unique_ptr<Exporter> createExporter(
     UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
 
     std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        subType, CodecRegistry::codec()->details().fileFormatShortName,
+        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
         frameRateNumerator, frameRateDenominator,
@@ -616,8 +616,7 @@ AEIO_StartAdding(
             movieFile.onOpenForWrite();  //!!! move to writer
 
             const auto& codec = *CodecRegistry::codec();
-            bool hasCodecSubType(codec.details().subtypes.size() > 0);
-            CodecSubType subType = optionsUP->subType;
+            Codec4CC codec4CC = codec.details().hasSubTypes() ? optionsUP->subType : codec.details().videoFormat;
 
             HapChunkCounts chunkCounts{ static_cast<unsigned int>(optionsUP->chunkCount), static_cast<unsigned int>(optionsUP->chunkCount)};
             bool hasChunkCounts(codec.details().hasChunkCount);
@@ -626,7 +625,7 @@ AEIO_StartAdding(
                 FrameDef(widthL, heightL,
                          format),
                 codecAlpha,
-                hasCodecSubType, subType,
+                codec4CC,
                 hasChunkCounts, chunkCounts,
                 clampedQuality,
                 frameRateNumerator,

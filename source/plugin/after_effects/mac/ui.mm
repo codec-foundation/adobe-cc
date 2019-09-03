@@ -250,7 +250,7 @@ private:
     std::vector<UIValueItem> items_;
 };
 
-bool ui_OutDialog(CodecSubType& subType, int &quality, int& chunkCount, void *platformSpecific)
+bool ui_OutDialog(Codec4CC& subType, int &quality, int& chunkCount, void *platformSpecific)
 {
     bool didSave = false;
     const auto& codec = *CodecRegistry::codec();

@@ -283,10 +283,10 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
         if (codec.details().subtypes.size()) {
             exParamValues subCodecTypeParam;
             settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoCodec, &subCodecTypeParam);
-            const auto codecSubtype = reinterpret_cast<CodecSubType&>(subCodecTypeParam.value.intValue);
+            const auto codecSubType = reinterpret_cast<Codec4CC&>(subCodecTypeParam.value.intValue);
 
             exParamValues qualityToValidate;
-            bool enableQuality = codec.details().hasQualityForSubType(codecSubtype);
+            bool enableQuality = codec.details().hasQualityForSubType(codecSubType);
             settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoQuality, &qualityToValidate);
             qualityToValidate.disabled = !enableQuality;
             settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoQuality, &qualityToValidate);
