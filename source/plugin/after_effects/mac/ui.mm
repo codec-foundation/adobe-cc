@@ -236,7 +236,7 @@ public:
         {
             const auto &codec = CodecRegistry::codec();
             auto subTypeItem = getItem(identifier);
-            bool enable = codec->hasQuality(fromTag(subTypeItem->getSelectedMenuItemTag()));
+            bool enable = codec.details().hasQualityForSubtype(fromTag(subTypeItem->getSelectedMenuItemTag()));
 
             auto qualityItem = getItem(static_cast<int>(UIItem::Quality));
             if (qualityItem)
@@ -268,7 +268,7 @@ bool ui_OutDialog(CodecSubType& subType, int &quality, int& chunkCount, void *pl
 
         if (codec.hasQualityForAnySubType())
         {
-            view.addItem(UIValueItem(static_cast<int>(UIItem::Quality), "Quality", codec.qualityDescriptions(), quality));
+            view.addItem(UIValueItem(static_cast<int>(UIItem::Quality), "Quality", codec.details().quality.descriptions(), quality));
         }
 
         if (codec.details().hasChunkCount)
