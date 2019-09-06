@@ -163,7 +163,7 @@ static BOOL CALLBACK DialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARA
 } 
 
 bool
-ui_OutDialog(CodecSubType& subType, int& quality, int &chunkCount, void *platformSpecific)
+ui_OutDialog(Codec4CC& subType, int& quality, int &chunkCount, void *platformSpecific)
 {
 	// set globals
     g_SubType = reinterpret_cast<DWORD&>(subType);
@@ -180,7 +180,7 @@ ui_OutDialog(CodecSubType& subType, int& quality, int &chunkCount, void *platfor
 
         bool hasSubTypes = (codec.details().subtypes.size() > 0);
         if (hasSubTypes)
-            subType = reinterpret_cast<CodecSubType&>(g_SubType);
+            subType = reinterpret_cast<Codec4CC&>(g_SubType);
 
         if (codec.details().quality.hasQualityForAnySubType)
             quality = (int)g_Quality;
