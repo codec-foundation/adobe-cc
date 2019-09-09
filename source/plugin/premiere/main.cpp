@@ -235,7 +235,7 @@ prMALError queryOutputSettings(exportStdParms *stdParmsP, exQueryOutputSettingsR
 	const csSDK_uint32 exID = outputSettingsP->exporterPluginID;
     exParamValues width, height, frameRate, subTypeParamValue;
     bool hasSubType{ false };
-    CodecSubType subType;
+    Codec4CC subType;
     ExportSettings* privateData = reinterpret_cast<ExportSettings*>(outputSettingsP->privateData);
 	PrSDKExportParamSuite* paramSuite = privateData->exportParamSuite;
 	const csSDK_int32 mgroupIndex = 0;
@@ -256,7 +256,7 @@ prMALError queryOutputSettings(exportStdParms *stdParmsP, exQueryOutputSettingsR
 
         hasSubType = true;
         paramSuite->GetParamValue(exID, mgroupIndex, ADBEVideoCodec, &subTypeParamValue);
-        subType = reinterpret_cast<CodecSubType&>(subTypeParamValue.value.intValue);
+        subType = reinterpret_cast<Codec4CC&>(subTypeParamValue.value.intValue);
 
         outputSettingsP->outVideoAspectNum = 1;
 		outputSettingsP->outVideoAspectDen = 1;
@@ -382,7 +382,7 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
 }
 
 static std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, bool hasSubType, CodecSubType subType, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
+    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
     int64_t frameRateNumerator, int64_t frameRateDenominator,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
@@ -394,8 +394,7 @@ static std::unique_ptr<Exporter> createExporter(
     std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
         frameDef,
         alpha,
-        hasSubType,
-        subType,
+        videoFormat,
         hasChunkCount,
         chunkCounts,
         quality
@@ -404,7 +403,7 @@ static std::unique_ptr<Exporter> createExporter(
     UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
 
     std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        encoder->subType(), encoder->name(),
+        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
         frameRateNumerator, frameRateDenominator,
@@ -435,7 +434,7 @@ void exportLoop(exDoExportRec* exportInfoP, prMALError& error)
 
     renderParams.inRenderParamsSize = sizeof(ExportLoopRenderParams);
     renderParams.inRenderParamsVersion = kPrSDKExporterUtilitySuiteVersion;
-    renderParams.inFinalPixelFormat = CodecRegistry().isHighBitDepth()
+    renderParams.inFinalPixelFormat = CodecRegistry::codec()->details().isHighBitDepth
         ? PrPixelFormat_BGRA_4444_16u // PrPixelFormat_BGRA_4444_32f
         : PrPixelFormat_BGRA_4444_8u;
     renderParams.inStartTime = exportInfoP->startTime;
@@ -463,12 +462,11 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     const csSDK_uint32 exID = exportInfoP->exporterPluginID;
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(exportInfoP->privateData);
     exParamValues ticksPerFrame, width, height, includeAlphaChannel, subTypeParam, quality, chunkCountParam;
-    CodecSubType subType{ 0 };
+    Codec4CC videoFormat{ 0 };
     bool hasChunkCount{ false };
 	PrTime ticksPerSecond;
 
     const auto& codec = *CodecRegistry::codec();
-    bool hasSubType{ 0 != codec.details().subtypes.size() };
     bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
 
     settings->logMessage("codec implementation: " + CodecRegistry::logName());
@@ -476,10 +474,13 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoFPS, &ticksPerFrame);
 	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoWidth, &width);
 	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoHeight, &height);
-    if (hasSubType)
+    if (codec.details().hasSubTypes())
     {
         settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoCodec, &subTypeParam);
-        subType = reinterpret_cast<CodecSubType&>(subTypeParam.value.intValue);
+        videoFormat = reinterpret_cast<Codec4CC&>(subTypeParam.value.intValue);
+    }
+    else {
+        videoFormat = codec.details().videoFormat;
     }
     CodecAlpha alpha{ withAlpha };
     if (hasExplicitAlphaChannel) {
@@ -509,7 +510,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     //!!!
     int clampedQuality = std::clamp(quality.value.intValue, 1, 5);
 
-    ChannelFormat channelFormat(CodecRegistry::isHighBitDepth() ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
+    ChannelFormat channelFormat(codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
     FrameFormat format(channelFormat | FrameOrigin_BottomLeft | ChannelLayout_BGRA);
     FrameDef frameDef(width.value.intValue, height.value.intValue, format);
 
@@ -535,7 +536,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
         movieFile.onOpenForWrite();  //!!! move to writer
 
         settings->exporter = createExporter(
-            frameDef, alpha, hasSubType, subType, hasChunkCount, chunkCounts, clampedQuality,
+            frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
             frameRateNumerator, frameRateDenominator,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
@@ -571,7 +572,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             movieFile.onOpenForWrite();  //!!! move to writer
 
             settings->exporter = createExporter(
-                frameDef, alpha, hasSubType, subType, hasChunkCount, chunkCounts, clampedQuality,
+                frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
                 frameRateNumerator, frameRateDenominator,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,

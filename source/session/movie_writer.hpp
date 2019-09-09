@@ -27,7 +27,7 @@ public:
 class MovieWriter
 {
 public:
-    MovieWriter(VideoFormat videoFormat, VideoEncoderName encoderName,
+    MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
                 int width, int height,
                 int encodedBitDepth,  // rgb=24, rgba=32 etc. Needs to be set correctly for some playback importers (eg After Effects) 
                 int64_t frameRateNumerator, int64_t frameRateDenominator,

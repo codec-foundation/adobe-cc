@@ -26,7 +26,7 @@ target_sources(AdobeAfterEffectsSdk
     INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/adobesdk/config/PreConfig.h
         ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/adobesdk/config/PostConfig.h
-        ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/adobesdk/drawbotsuite/DrawBotSuiteTypes.h
+        ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/adobesdk/drawbotsuite/DrawbotSuiteTypes.h
         ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/AEConfig.h
         ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/AEConfig.h
         ${CMAKE_CURRENT_LIST_DIR}/AfterEffectsSDK/Examples/Headers/AE_GeneralPlug.h

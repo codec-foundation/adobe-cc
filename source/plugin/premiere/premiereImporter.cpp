@@ -515,6 +515,7 @@ ImporterOpenFile8(
 {
     prMALError			result = malNoError;
     ImporterLocalRec8H	localRecH;
+    const auto codec = *CodecRegistry::codec();
 
     if (fileOpenRec8->privatedata)
     {
@@ -535,12 +536,12 @@ ImporterOpenFile8(
         (*localRecH)->movieReader = std::move(readerAndHandle.first);
         *fileRef = readerAndHandle.second;
 
-        FileFormat fileFormat = CodecRegistry::codec()->details().fileFormat;
+        FileFormat fileFormat = codec.details().fileFormat;
         fileOpenRec8->fileinfo.filetype = reinterpret_cast<csSDK_int32&>(fileFormat);
 
         (*localRecH)->importerID = fileOpenRec8->inImporterID;
 
-        FrameFormat format((CodecRegistry::isHighBitDepth() ? ChannelFormat_U16_32k : ChannelFormat_U8) // we're going to try to deliver something in keeping with the codec's high bit depth
+        FrameFormat format((codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8) // we're going to try to deliver something in keeping with the codec's high bit depth
             | FrameOrigin_BottomLeft
             | ChannelLayout_BGRA      // bgra
         );
@@ -550,7 +551,7 @@ ImporterOpenFile8(
                      format
                     )
             );
-        (*localRecH)->decoder = CodecRegistry::codec()->createDecoder(std::move(decoderParameters));
+        (*localRecH)->decoder = codec.createDecoder(std::move(decoderParameters));
         (*localRecH)->decoderJob = (*localRecH)->decoder->create();
     }
     catch (...)
@@ -624,18 +625,19 @@ ImporterGetIndFormat(
         
     case 0:
     {
-        FileFormat fileFormat = CodecRegistry::codec()->details().fileFormat;
+        const auto codec = *CodecRegistry::codec();
+        FileFormat fileFormat = codec.details().fileFormat;
         indFormatRec->filetype = reinterpret_cast<csSDK_int32&>(fileFormat);
 
         indFormatRec->canWriteTimecode    = kPrTrue;
 
         #ifdef PRWIN_ENV
-        strcpy_s(indFormatRec->FormatName, sizeof (indFormatRec->FormatName), CodecRegistry::codec()->details().fileFormatName.c_str());                 // The long name of the importer
-        strcpy_s(indFormatRec->FormatShortName, sizeof (indFormatRec->FormatShortName), CodecRegistry::codec()->details().fileFormatShortName.c_str());        // The short (menu name) of the importer
-        strcpy_s(indFormatRec->PlatformExtension, sizeof (indFormatRec->PlatformExtension), platformXten); // The 3 letter extension
+        strcpy_s(indFormatRec->FormatName, sizeof (indFormatRec->FormatName), codec.details().fileFormatName.c_str());                 // The long name of the importer
+        strcpy_s(indFormatRec->FormatShortName, sizeof (indFormatRec->FormatShortName), codec.details().fileFormatShortName.c_str());        // The short (menu name) of the importer
+        strcpy_s(indFormatRec->PlatformExtension, sizeof (indFormatRec->PlatformExtension), platformXten);  // The 3 letter extension
         #else
-        strcpy(indFormatRec->FormatName, CodecRegistry::codec()->details().fileFormatName.c_str());            // The Long name of the importer
-        strcpy(indFormatRec->FormatShortName, CodecRegistry::codec()->details().fileFormatShortName.c_str());        // The short (menu name) of the importer
+        strcpy(indFormatRec->FormatName, codec.details().fileFormatName.c_str());            // The Long name of the importer
+        strcpy(indFormatRec->FormatShortName, codec.details().fileFormatShortName.c_str());  // The short (menu name) of the importer
         strcpy(indFormatRec->PlatformExtension, platformXten);   // The 3 letter extension
         #endif
 
@@ -658,7 +660,7 @@ ImporterGetIndPixelFormat(
     switch (idx)
     {
     case 0:
-        SDKIndPixelFormatRec->outPixelFormat = CodecRegistry().isHighBitDepth()
+        SDKIndPixelFormatRec->outPixelFormat = CodecRegistry::codec()->details().isHighBitDepth
             ? PrPixelFormat_BGRA_4444_16u // PrPixelFormat_BGRA_4444_32f
             : PrPixelFormat_BGRA_4444_8u;
         break;

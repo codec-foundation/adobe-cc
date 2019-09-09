@@ -82,13 +82,13 @@ enum CodecAlpha
     withAlpha = 1
 };
 
-typedef std::array<char, 4> CodecSubType;
+typedef std::array<char, 4> Codec4CC;
 typedef std::array<unsigned int, 2> HapChunkCounts;  //!!! move this
 
 struct EncoderParametersBase {
-    EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, bool hasSubType_, CodecSubType subType_,
+    EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, Codec4CC codec4CC_,
                           bool hasChunkCount_, HapChunkCounts chunkCounts_, int quality_)
-        : frameDef(frameDef_), alpha(alpha_), hasSubType(hasSubType_), subType(subType_),
+        : frameDef(frameDef_), alpha(alpha_), codec4CC(codec4CC_),
           hasChunkCount(hasChunkCount_), chunkCounts(chunkCounts_), quality(quality_) {}
     virtual ~EncoderParametersBase() {}
 
@@ -99,8 +99,7 @@ struct EncoderParametersBase {
 
     FrameDef frameDef;
     CodecAlpha alpha;
-    bool hasSubType;
-    CodecSubType subType;
+    Codec4CC codec4CC;
     bool hasChunkCount;
     HapChunkCounts chunkCounts; //!!! move this
     int quality;
@@ -127,7 +126,6 @@ struct DecoderParametersBase {
 
 typedef std::array<char, 4> FileFormat;
 typedef std::array<char, 4> VideoFormat;
-typedef std::array<char, 31> VideoEncoderName;
 
 class EncoderJob {
 public:
@@ -206,8 +204,6 @@ public:
     {};
     virtual ~Encoder() {};
 
-    virtual VideoFormat subType() const = 0;   //!!! provide default implementation
-    virtual VideoEncoderName name() const = 0; //!!! provide default implementation
     const EncoderParametersBase& parameters() const { return *parameters_; }
     int encodedBitDepth() const { return (parameters_->alpha == withoutAlpha) ? 24 : 32; }
 
@@ -227,7 +223,6 @@ public:
     {};
     virtual ~Decoder() {};
 
-    virtual VideoFormat subType() const { throw std::runtime_error("not implemented"); }
     const DecoderParametersBase& parameters() const { return *parameters_; }
 
     virtual std::unique_ptr<DecoderJob> create() = 0;
@@ -248,8 +243,16 @@ private:
 typedef std::unique_ptr<Encoder, std::function<void(Encoder *)>> UniqueEncoder;
 typedef std::unique_ptr<Decoder, std::function<void(Decoder *)>> UniqueDecoder;
 
-typedef std::pair<CodecSubType, std::string> CodecNamedSubType;
+typedef std::pair<Codec4CC, std::string> CodecNamedSubType;
 typedef std::vector<CodecNamedSubType> CodecNamedSubTypes;
+
+struct QualityCodecDetails {
+    bool hasQualityForAnySubType;
+    std::map<Codec4CC, bool> presentForSubType;
+    // qualities are ordered integers, not necessarily starting at 0 nor contiguous
+    std::map<int, std::string> descriptions;
+    int defaultQuality;
+};
 
 struct CodecDetails
 {
@@ -259,10 +262,13 @@ struct CodecDetails
     std::string videoFileExt;
     FileFormat fileFormat;
     VideoFormat videoFormat;
-    CodecNamedSubTypes subtypes;      // leave empty for no subtypes
-    CodecSubType defaultSubType;
+    CodecNamedSubTypes subtypes;     // leave empty for no subtypes
+    Codec4CC defaultSubType;
+    bool isHighBitDepth;             // should host expect high bit depth from this codec
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
+    QualityCodecDetails quality;
+    uint32_t premiereParamsVersion;              // Adobe Premiere parameters version
     std::string premiereGroupName;               // Adobe Premiere group name for storage
     std::string premiereIncludeAlphaChannelName; // Adobe Premiere include alpha channel for storage(backwards compat)
     std::string premiereChunkCountName;          // Adobe Premiere chunk count name for storage (backwards compat)
@@ -270,6 +276,16 @@ struct CodecDetails
     uint32_t afterEffectsCreator;   // other AEX reg info - _not_ exactly sure how this is is used by AEX
     uint32_t afterEffectsType;      // ditto
     uint32_t afterEffectsMacType;   // ditto
+
+    // helpers
+    bool hasSubTypes() const {
+        return subtypes.size() != 0;
+    }
+
+    bool hasQualityForSubType(Codec4CC subType) const {
+        return  quality.hasQualityForAnySubType
+            && (!hasSubTypes() || quality.presentForSubType.at(subType));
+    }
 };
 
 class CodecRegistry {
@@ -283,21 +299,11 @@ public:
 
     // codec properties
     static const CodecDetails& details();
-    static int getPixelFormatSize(bool hasSubType, CodecSubType subType); // !!! for bitrate calculation; should be moved to encoder
-
-    static bool isHighBitDepth();       // should host expect high bit depth from this codec
+    static int getPixelFormatSize(bool hasSubType, Codec4CC subType); // !!! for bitrate calculation; should be moved to encoder
 
     // as much information about the codec that will be doing the job as possible - eg gpu vs cpu, codebase etc
     // for output to log
     static std::string logName();
-
-    // quality settings
-
-    // qualities are ordered integers, not necessarily starting at 0 nor contiguous
-    static bool hasQualityForAnySubType();
-    static bool hasQuality(const CodecSubType& subtype);
-    static std::map<int, std::string> qualityDescriptions();
-    static int defaultQuality();
 
     //!!! should be private
     CodecRegistry();

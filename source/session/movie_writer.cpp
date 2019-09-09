@@ -35,7 +35,7 @@ extern "C" {
     extern AVOutputFormat ff_mov_muxer;
 }
 // =======================================================
-MovieWriter::MovieWriter(VideoFormat videoFormat, VideoEncoderName encoderName,
+MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
     int width, int height, int encodedBitDepth,
     int64_t frameRateNumerator, int64_t frameRateDenominator,
     int32_t maxFrames, int32_t reserveMetadataSpace,
@@ -89,7 +89,7 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, VideoEncoderName encoderName,
     videoStream_->codecpar->width = width;
     videoStream_->codecpar->height = height;
     videoStream_->codecpar->bits_per_coded_sample = encodedBitDepth;
-    av_dict_set(&videoStream_->metadata, "encoder", &encoderName[0], 0);
+    av_dict_set(&videoStream_->metadata, "encoder", encoderName.c_str(), 0);
 
     /* timebase: This is the fundamental unit of time (in seconds) in terms
     * of which frame timestamps are represented. For fixed-fps content,

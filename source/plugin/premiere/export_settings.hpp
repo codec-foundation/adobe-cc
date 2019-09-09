@@ -16,7 +16,6 @@
 #include <PrSDKExportProgressSuite.h>
 #include <PrSDKExportParamSuite.h>
 #include <PrSDKExporterUtilitySuite.h>
-#include "SDK_Segment_Utils.h"
 
 class CodecRegistry;
 

@@ -59,12 +59,12 @@ static BOOL CALLBACK DialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARA
                     //!!! TODO do not show subtypes item
                 }
 
-                if (codec.hasQualityForAnySubType())
+                if (codec.details().quality.hasQualityForAnySubType)
                 {
                     // set up the menu
                     HWND menu = GetDlgItem(hwndDlg, OUT_Quality_Menu);
 
-                    auto qualities = CodecRegistry::codec()->qualityDescriptions();
+                    auto qualities = codec.details().quality.descriptions;
                     auto quality = qualities.begin();
 
                     for (int i = 0; i < qualities.size(); ++i, ++quality)
@@ -134,7 +134,7 @@ static BOOL CALLBACK DialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARA
                         }
 
                         // quality
-                        if (codec.hasQualityForAnySubType())
+                        if (codec.details().quality.hasQualityForAnySubType)
                         {
                             HWND menu = GetDlgItem(hwndDlg, OUT_Quality_Menu);
 
@@ -163,7 +163,7 @@ static BOOL CALLBACK DialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARA
 } 
 
 bool
-ui_OutDialog(CodecSubType& subType, int& quality, int &chunkCount, void *platformSpecific)
+ui_OutDialog(Codec4CC& subType, int& quality, int &chunkCount, void *platformSpecific)
 {
 	// set globals
     g_SubType = reinterpret_cast<DWORD&>(subType);
@@ -180,9 +180,9 @@ ui_OutDialog(CodecSubType& subType, int& quality, int &chunkCount, void *platfor
 
         bool hasSubTypes = (codec.details().subtypes.size() > 0);
         if (hasSubTypes)
-            subType = reinterpret_cast<CodecSubType&>(g_SubType);
+            subType = reinterpret_cast<Codec4CC&>(g_SubType);
 
-        if (codec.hasQualityForAnySubType())
+        if (codec.details().quality.hasQualityForAnySubType)
             quality = (int)g_Quality;
 		
         if (codec.details().hasChunkCount)

@@ -27,12 +27,12 @@ struct OutputOptions
 {
     OutputOptions()
         : subType{ CodecRegistry::codec()->details().defaultSubType },
-          quality(CodecRegistry::defaultQuality()),
+          quality(CodecRegistry::codec()->details().quality.defaultQuality),
           chunkCount(0)
     {}
     ~OutputOptions() {}
 
-    CodecSubType subType;
+    Codec4CC     subType;
     int          quality;
     int          chunkCount;
 
@@ -49,7 +49,7 @@ void to_json(json& j, const OutputOptions& o) {
     if (hasSubTypes) {
         j["subType"] = o.subType;
     }
-    if (codec.hasQuality(o.subType)) {
+    if (codec.details().hasQualityForSubType(o.subType)) {
         j["quality"] = o.quality;
     };
     if (codec.details().hasChunkCount) {
@@ -64,7 +64,7 @@ void from_json(const json& j, OutputOptions& o) {
     {
         j.at("subType").get_to(o.subType);
     }
-    if (codec.hasQuality(o.subType)) {
+    if (codec.details().hasQualityForSubType(o.subType)) {
         j.at("quality").get_to(o.quality);
     }
     if (codec.details().hasChunkCount) {
@@ -159,7 +159,7 @@ static MovieFile createMovieFile(const std::string &filename,
 
 
 static std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, bool hasCodecSubType, CodecSubType subType, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
+    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
     int64_t frameRateNumerator, int64_t frameRateDenominator,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
@@ -170,7 +170,7 @@ static std::unique_ptr<Exporter> createExporter(
     std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
         frameDef,
         alpha,
-        hasCodecSubType, subType,
+        videoFormat,
         hasChunkCount, chunkCounts,
         quality
         );
@@ -178,7 +178,7 @@ static std::unique_ptr<Exporter> createExporter(
     UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
 
     std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        encoder->subType(), encoder->name(),
+        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
         frameRateNumerator, frameRateDenominator,
@@ -388,9 +388,8 @@ AEIO_GetOutputInfo(
         return A_Err_PARAMETER;
 
     std::string description(codecTypeName);
-    if (codec.hasQualityForAnySubType()) {
-        if (!hasSubtypes || codec.hasQuality(optionsUP->subType))
-            description += std::string("\rQuality setting: ") + CodecRegistry::codec()->qualityDescriptions()[optionsUP->quality];
+    if (codec.details().hasQualityForSubType(optionsUP->subType)) {
+        description += std::string("\rQuality setting: ") + codec.details().quality.descriptions.at(optionsUP->quality);
     }
 
     if (codec.details().hasChunkCount)
@@ -617,8 +616,7 @@ AEIO_StartAdding(
             movieFile.onOpenForWrite();  //!!! move to writer
 
             const auto& codec = *CodecRegistry::codec();
-            bool hasCodecSubType(codec.details().subtypes.size() > 0);
-            CodecSubType subType = optionsUP->subType;
+            Codec4CC codec4CC = codec.details().hasSubTypes() ? optionsUP->subType : codec.details().videoFormat;
 
             HapChunkCounts chunkCounts{ static_cast<unsigned int>(optionsUP->chunkCount), static_cast<unsigned int>(optionsUP->chunkCount)};
             bool hasChunkCounts(codec.details().hasChunkCount);
@@ -627,7 +625,7 @@ AEIO_StartAdding(
                 FrameDef(widthL, heightL,
                          format),
                 codecAlpha,
-                hasCodecSubType, subType,
+                codec4CC,
                 hasChunkCounts, chunkCounts,
                 clampedQuality,
                 frameRateNumerator,
