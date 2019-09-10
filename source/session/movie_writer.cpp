@@ -239,7 +239,7 @@ void MovieWriter::addAudioStream(int numChannels, int sampleRate, int bytesPerSa
     setAVCodecParams(numChannels, sampleRate, bytesPerSample, encoding, *audioStream_->codecpar);
 }
 
-void MovieWriter::writeFrame(const uint8_t *data, size_t size)
+void MovieWriter::writeVideoFrame(const uint8_t *data, size_t size)
 {
     AVPacket pkt = { 0 };
 

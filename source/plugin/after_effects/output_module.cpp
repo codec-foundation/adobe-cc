@@ -711,7 +711,7 @@ AEIO_AddFrame(
 
         try {
             for (auto iFrame = frame_index; iFrame < frame_index + frames; ++iFrame)
-                optionsUP->exporter->dispatch(iFrame, (uint8_t*)rgba_buffer_tl, rgba_stride, format);
+                optionsUP->exporter->dispatchVideo(iFrame, (uint8_t*)rgba_buffer_tl, rgba_stride, format);
         }
         catch (...)
         {
@@ -808,14 +808,22 @@ AEIO_AddSoundChunk(
     if (!optionsUP)
         return A_Err_PARAMETER;
 
+    A_FpLong			soundRateF = 0.0;
     AEIO_SndChannels    num_channels;
     AEIO_SndSampleSize  bytes_per_sample;
+
+    ERR(suites.IOOutSuite4()->AEGP_GetOutSpecSoundRate(outH, &soundRateF));
     ERR(suites.IOOutSuite4()->AEGP_GetOutSpecSoundChannels(outH, &num_channels));
     ERR(suites.IOOutSuite4()->AEGP_GetOutSpecSoundSampleSize(outH, &bytes_per_sample));
+
+    int64_t audio_pts = (int64_t)(start->value * soundRateF / start->scale);
+
     if (!err) {
-        optionsUP->exporter->dispatch_audio_at_end(
+        optionsUP->exporter->dispatchAudio(
+            audio_pts,
             reinterpret_cast<const uint8_t *>(dataPV),
-            num_channels * num_samplesLu * bytes_per_sample);
+            num_channels * num_samplesLu * bytes_per_sample
+        );
     }
 
     return err; 

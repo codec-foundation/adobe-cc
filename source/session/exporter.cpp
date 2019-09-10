@@ -13,7 +13,7 @@ ExporterJobEncoder::ExporterJobEncoder(Encoder& encoder)
 void ExporterJobEncoder::push(ExportJob job)
 {
     std::lock_guard<std::mutex> guard(mutex_);
-    queue_.push_back(std::move(job));
+    queue_.push(std::move(job));
     nEncodeJobs_++;
 }
 
@@ -23,18 +23,15 @@ ExportJob ExporterJobEncoder::encode()
 
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        auto earliest = std::min_element(queue_.begin(), queue_.end(),
-                                         [](const auto& lhs, const auto& rhs) { return (*lhs).iFrame < (*rhs).iFrame; });
-        if (earliest != queue_.end()) {
-            job = std::move(*earliest);
-            queue_.erase(earliest);
-            nEncodeJobs_--;
+        if (!queue_.empty()) {
+            job = std::move(queue_.front());
+            queue_.pop();
         }
     }
 
     if (job)
     {
-        job->codecJob->encode(job->output);
+        job->encode();
     }
 
     return job;
@@ -46,33 +43,35 @@ ExporterJobWriter::ExporterJobWriter(std::unique_ptr<MovieWriter> writer)
 {
 }
 
-void ExporterJobWriter::enqueueFrameWrite(int64_t iFrame)
+void ExporterJobWriter::enqueueVideoFrameWrite(int64_t iFrame)
 {
-    std::lock_guard<std::mutex> guard(frameOrderMutex_);
-    frameOrderQueue_.push(iFrame);
+    std::lock_guard<std::mutex> guard(writeOrderMutex_);
+    writeOrderQueue_.push(std::make_pair(ExportJobType::Video, iFrame));
 }
 
-// !!! buffer for write-out at end
-void ExporterJobWriter::dispatch_audio_at_end(const uint8_t *audio, size_t size)
+void ExporterJobWriter::enqueueAudioFrameWrite(int64_t pts)
 {
-    audioBuffer_.insert(audioBuffer_.end(), audio, audio + size);
+    std::lock_guard<std::mutex> guard(writeOrderMutex_);
+    writeOrderQueue_.push(std::make_pair(ExportJobType::Audio, pts));
 }
 
 void ExporterJobWriter::push(ExportJob job)
 {
     std::lock_guard<std::mutex> guard(mutex_);
-    queue_.push_back(std::move(job));
+    jobs_.push_back(std::move(job));
 }
 
 ExportJob ExporterJobWriter::write()
 {
-    int64_t iFrameNextToWrite;
+    ExportJobType jobTypeNextToWrite;
+    int64_t iFrameOrPtsNextToWrite;
     // careful to only lock frameOrderMutex_ briefly, as the dispatcher needs to return
     {
-        std::lock_guard<std::mutex> guard(frameOrderMutex_);
-        if (!frameOrderQueue_.empty())
-            iFrameNextToWrite = frameOrderQueue_.front();
-        else
+        std::lock_guard<std::mutex> guard(writeOrderMutex_);
+        if (!writeOrderQueue_.empty()) {
+            jobTypeNextToWrite = writeOrderQueue_.front().first;
+            iFrameOrPtsNextToWrite = writeOrderQueue_.front().second;
+        } else
             return nullptr;
     }
 
@@ -81,26 +80,34 @@ ExportJob ExporterJobWriter::write()
     if (try_guard.owns_lock())
     {
         try {
-            auto earliest = std::min_element(queue_.begin(), queue_.end(),
-                [](const auto& lhs, const auto& rhs) { return (*lhs).iFrame < (*rhs).iFrame; });
-            if (earliest != queue_.end() && (*earliest)->iFrame == iFrameNextToWrite) {
-                // we and no-one else will attempt to write this frame, so dequeue from the frameOrderQueue_
+            auto earliest = std::find_if(jobs_.begin(), jobs_.end(),
+                                        [&](const auto& j) {
+                                            return (j->type() == jobTypeNextToWrite)
+                                                && (iFrameOrPtsNextToWrite == j->iFrameOrPts); });
+            if (earliest != jobs_.end()) {
+                // we and no-one else will attempt to write this frame, so dequeue from the writeOrderQueue_
                 // take care to lock and release frameOrderMutex_ quickly
-                // no-one else locks frameOrderMutex_ while holding mutex_, so this will not deadlock
+                // no-one else locks writeOrderMutex_ while holding mutex_, so this will not deadlock
                 {
-                    std::lock_guard<std::mutex> guard(frameOrderMutex_);
-                    frameOrderQueue_.pop();
+                    std::lock_guard<std::mutex> guard(writeOrderMutex_);
+                    writeOrderQueue_.pop();
                 }
 
                 ExportJob job = std::move(*earliest);
-                queue_.erase(earliest);
+                jobs_.erase(earliest);
 
                 // start idle timer first time we try to write to avoid false including setup time
                 if (idleStart_ == std::chrono::high_resolution_clock::time_point())
                     idleStart_ = std::chrono::high_resolution_clock::now();
 
                 writeStart_ = std::chrono::high_resolution_clock::now();
-                writer_->writeFrame(&job->output.buffer[0], job->output.buffer.size());
+
+                if (job->type() == ExportJobType::Video) {
+                    writer_->writeVideoFrame(&job->output.buffer[0], job->output.buffer.size());
+                }
+                else {
+                    writer_->writeAudioFrame(&job->output.buffer[0], job->output.buffer.size(), job->iFrameOrPts);
+                }
                 auto writeEnd = std::chrono::high_resolution_clock::now();
 
                 // filtered update of utilisation_
@@ -131,19 +138,19 @@ void ExporterJobWriter::close()
     {
         writer_->flush();
 
-        if (audioBuffer_.size())
-            writer_->writeAudioFrame(&audioBuffer_[0], audioBuffer_.size(), 0);
-
-        writer_->flush();
-
         writer_->writeTrailer();
     }
 
     writer_->close();
 }
 
-ExporterWorker::ExporterWorker(std::atomic<bool>& error, ExporterJobFreeList& freeList, ExporterJobEncoder& encoder, ExporterJobWriter& writer)
-    : quit_(false), error_(error), jobFreeList_(freeList), jobEncoder_(encoder), jobWriter_(writer)
+ExporterWorker::ExporterWorker(
+    std::atomic<bool>& error,
+    VideoExporterJobFreeList& videoFreeList, AudioExporterJobFreeList& audioFreeList,
+    ExporterJobEncoder& encoder, ExporterJobWriter& writer)
+    : quit_(false), error_(error),
+      videoJobFreeList_(videoFreeList), audioJobFreeList_(audioFreeList),
+      jobEncoder_(encoder), jobWriter_(writer)
 {
     worker_ = std::thread(worker_start, std::ref(*this));
 }
@@ -200,7 +207,12 @@ void ExporterWorker::run()
 
                     if (written)
                     {
-                        jobFreeList_.free(std::move(written));
+                        if (written->type() == ExportJobType::Video)
+                            videoJobFreeList_.free(std::move(written));
+                        else if (written->type() == ExportJobType::Audio)
+                            audioJobFreeList_.free(std::move(written));
+                        else
+                            throw std::runtime_error("unhandled job type for freelists");
                         break;
                     }
 
@@ -222,16 +234,19 @@ Exporter::Exporter(
     UniqueEncoder encoder,
     std::unique_ptr<MovieWriter> movieWriter)
   : encoder_(std::move(encoder)),
-    jobFreeList_(std::function<ExportJob ()>([&](){
-        return std::make_unique<ExportJob::element_type>(encoder_->create());
-    })),
-    jobEncoder_(*encoder_),
+    videoJobFreeList_(std::function<std::unique_ptr<VideoExportJob>()>([&]() {
+                        return std::make_unique<VideoExportJob>(encoder_->create());
+                      })),
+    audioJobFreeList_(std::function<std::unique_ptr<AudioExportJob>()>([&]() {
+                        return std::make_unique<AudioExportJob>();
+                      })),
+            jobEncoder_(*encoder_),
     jobWriter_(std::move(movieWriter))
 {
     concurrentThreadsSupported_ = std::thread::hardware_concurrency() + 1;  // we assume at least 1 thread will be blocked by io write
 
     // 1 thread to start with, super large textures can exhaust memory immediately with multiple jobs
-    workers_.push_back(std::make_unique<ExporterWorker>(error_, jobFreeList_, jobEncoder_, jobWriter_));
+    workers_.push_back(std::make_unique<ExporterWorker>(error_, videoJobFreeList_, audioJobFreeList_, jobEncoder_, jobWriter_));
 }
 
 Exporter::~Exporter()
@@ -270,7 +285,7 @@ void Exporter::close()
 }
 
 
-void Exporter::dispatch(int64_t iFrame, const uint8_t* data, size_t stride, FrameFormat format) const
+void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride, FrameFormat format) const
 {
     // it is not clear from the docs whether or not frames are completed and passed in strict order
     // nevertheless we must make that assumption because
@@ -291,14 +306,14 @@ void Exporter::dispatch(int64_t iFrame, const uint8_t* data, size_t stride, Fram
         }
         ++(*currentFrame_);
     }
- 
+
     // keep the writing order consistent with dispatches here
-    jobWriter_.enqueueFrameWrite(iFrame);
+    jobWriter_.enqueueVideoFrameWrite(iFrame);
 
     // throttle the caller - if the queue is getting too long we should wait
     while ((jobEncoder_.nEncodeJobs() >= std::max(size_t{ 1 }, workers_.size() - 1))  // first worker either encodes or writes
-            && !expandWorkerPoolToCapacity()  // if we can, expand the pool
-            && !error_)
+        && !expandWorkerPoolToCapacity()  // if we can, expand the pool
+        && !error_)
     {
         // otherwise wait for an opening
         std::this_thread::sleep_for(2ms);
@@ -310,24 +325,49 @@ void Exporter::dispatch(int64_t iFrame, const uint8_t* data, size_t stride, Fram
     if (error_)
         throw std::runtime_error("error while exporting");
 
-    ExportJob job = jobFreeList_.allocate();
-
-    job->iFrame = iFrame;
+    ExportJob job = videoJobFreeList_.allocate();
+    job->iFrameOrPts = iFrame;
 
     // take a copy of the frame, in the codec preferred manner. we immediately return and let
     // the renderer get on with its job.
     //
     // TODO: may be able to use Adobe's addRef at a higher level and pipe it through for a minor
     //       performance gain
-    job->codecJob->copyExternalToLocal(data, stride, format);
+    static_cast<VideoExportJob&>(*job).codecJob->copyExternalToLocal(data, stride, format);
 
     jobEncoder_.push(std::move(job));
 }
 
-// !!! buffer for write-out at end
-void Exporter::dispatch_audio_at_end(const uint8_t *audio, size_t size)
+void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) const
 {
-    jobWriter_.dispatch_audio_at_end(audio, size);
+    // keep the writing order consistent with dispatches here
+    jobWriter_.enqueueAudioFrameWrite(pts);
+
+    // throttle the caller - if the queue is getting too long we should wait
+    while ((jobEncoder_.nEncodeJobs() >= std::max(size_t{ 1 }, workers_.size() - 1))  // first worker either encodes or writes
+        && !expandWorkerPoolToCapacity()  // if we can, expand the pool
+        && !error_)
+    {
+        // otherwise wait for an opening
+        std::this_thread::sleep_for(2ms);
+    }
+
+    // worker threads can die while encoding or writing (eg full disk)
+    // this is the most likely spot where the error can be noted by the main thread
+    // TODO: should intercept and alert with the correct error reason
+    if (error_)
+        throw std::runtime_error("error while exporting");
+
+    ExportJob job = audioJobFreeList_.allocate();
+    job->iFrameOrPts = pts;
+    
+    // take a copy of the frame, in the codec preferred manner. we immediately return and let
+    // the renderer get on with its job.
+    job->output.buffer.resize(size);  // !!! would be nice to resize + copy in one step, avoiding zeroing
+    std::copy(data, data + size, &job->output.buffer[0]);
+
+    // !!! could go straight to the writer here
+    jobEncoder_.push(std::move(job));
 }
 
 // returns true if pool was expanded
@@ -338,7 +378,7 @@ bool Exporter::expandWorkerPoolToCapacity() const
     bool isNotBufferLimited = true;  // TODO: get memoryUsed < maxMemoryCapacity from Adobe API
 
     if (isNotThreadLimited && isNotOutputLimited && isNotBufferLimited) {
-        workers_.push_back(std::make_unique<ExporterWorker>(error_, jobFreeList_, jobEncoder_, jobWriter_));
+        workers_.push_back(std::make_unique<ExporterWorker>(error_, videoJobFreeList_, audioJobFreeList_, jobEncoder_, jobWriter_));
         return true;
     }
     return false;
