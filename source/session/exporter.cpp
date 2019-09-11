@@ -1,4 +1,5 @@
 #include <chrono>
+#include <optional>
 #include <thread>
 
 #include "exporter.hpp"
@@ -26,6 +27,7 @@ ExportJob ExporterJobEncoder::encode()
         if (!queue_.empty()) {
             job = std::move(queue_.front());
             queue_.pop();
+            nEncodeJobs_--;
         }
     }
 
@@ -43,93 +45,63 @@ ExporterJobWriter::ExporterJobWriter(std::unique_ptr<MovieWriter> writer)
 {
 }
 
-void ExporterJobWriter::enqueueVideoFrameWrite(int64_t iFrame)
+void ExporterJobWriter::enqueueWrite(std::future<ExportJob> encoded)
 {
-    std::lock_guard<std::mutex> guard(writeOrderMutex_);
-    writeOrderQueue_.push(std::make_pair(ExportJobType::Video, iFrame));
-}
-
-void ExporterJobWriter::enqueueAudioFrameWrite(int64_t pts)
-{
-    std::lock_guard<std::mutex> guard(writeOrderMutex_);
-    writeOrderQueue_.push(std::make_pair(ExportJobType::Audio, pts));
-}
-
-void ExporterJobWriter::push(ExportJob job)
-{
-    std::lock_guard<std::mutex> guard(mutex_);
-    jobs_.push_back(std::move(job));
+    std::lock_guard<std::mutex> guard(writeQueueMutex_);
+    writeQueue_.push(std::move(encoded));
 }
 
 ExportJob ExporterJobWriter::write()
 {
-    ExportJobType jobTypeNextToWrite;
-    int64_t iFrameOrPtsNextToWrite;
-    // careful to only lock frameOrderMutex_ briefly, as the dispatcher needs to return
+    std::lock_guard<std::mutex> guard(mutex_);
+    std::optional<std::future<ExportJob>> earliestFutureWriteJob;
+
+    // careful to only lock writeQueueMutex_ briefly, as the dispatcher needs to return
+    // others can add to the queue while we hold mutex_, but only we have the earliest item
+    // and will hang on to mutex_ until it is written
     {
-        std::lock_guard<std::mutex> guard(writeOrderMutex_);
-        if (!writeOrderQueue_.empty()) {
-            jobTypeNextToWrite = writeOrderQueue_.front().first;
-            iFrameOrPtsNextToWrite = writeOrderQueue_.front().second;
+        std::lock_guard<std::mutex> guard(writeQueueMutex_);
+        if (!writeQueue_.empty()) {
+            earliestFutureWriteJob = std::move(writeQueue_.front());
+            writeQueue_.pop();
         } else
             return nullptr;
     }
 
-    std::unique_lock<std::mutex> try_guard(mutex_, std::try_to_lock);
+    try {
+        // wait for the value
+        ExportJob job = earliestFutureWriteJob->get();
 
-    if (try_guard.owns_lock())
-    {
-        try {
-            auto earliest = std::find_if(jobs_.begin(), jobs_.end(),
-                                        [&](const auto& j) {
-                                            return (j->type() == jobTypeNextToWrite)
-                                                && (iFrameOrPtsNextToWrite == j->iFrameOrPts); });
-            if (earliest != jobs_.end()) {
-                // we and no-one else will attempt to write this frame, so dequeue from the writeOrderQueue_
-                // take care to lock and release frameOrderMutex_ quickly
-                // no-one else locks writeOrderMutex_ while holding mutex_, so this will not deadlock
-                {
-                    std::lock_guard<std::mutex> guard(writeOrderMutex_);
-                    writeOrderQueue_.pop();
-                }
+        // start idle timer first time we try to write to avoid false including setup time
+        if (idleStart_ == std::chrono::high_resolution_clock::time_point())
+            idleStart_ = std::chrono::high_resolution_clock::now();
 
-                ExportJob job = std::move(*earliest);
-                jobs_.erase(earliest);
+        writeStart_ = std::chrono::high_resolution_clock::now();
 
-                // start idle timer first time we try to write to avoid false including setup time
-                if (idleStart_ == std::chrono::high_resolution_clock::time_point())
-                    idleStart_ = std::chrono::high_resolution_clock::now();
-
-                writeStart_ = std::chrono::high_resolution_clock::now();
-
-                if (job->type() == ExportJobType::Video) {
-                    writer_->writeVideoFrame(&job->output.buffer[0], job->output.buffer.size());
-                }
-                else {
-                    writer_->writeAudioFrame(&job->output.buffer[0], job->output.buffer.size(), job->iFrameOrPts);
-                }
-                auto writeEnd = std::chrono::high_resolution_clock::now();
-
-                // filtered update of utilisation_
-                if (writeEnd != idleStart_)
-                {
-                    auto totalTime = (writeEnd - idleStart_).count();
-                    auto writeTime = (writeEnd - writeStart_).count();
-                    const double alpha = 0.9;
-                    utilisation_ = (1.0 - alpha) * utilisation_ + alpha * ((double)writeTime / totalTime);
-                }
-                idleStart_ = writeEnd;
-
-                return job;
-            }
+        if (job->type() == ExportJobType::Video) {
+            writer_->writeVideoFrame(&job->output.buffer[0], job->output.buffer.size());
         }
-        catch (...) {
-            error_ = true;
-            throw;
+        else {
+            writer_->writeAudioFrame(&job->output.buffer[0], job->output.buffer.size(), job->iFrameOrPts);
         }
+        auto writeEnd = std::chrono::high_resolution_clock::now();
+
+        // filtered update of utilisation_
+        if (writeEnd != idleStart_)
+        {
+            auto totalTime = (writeEnd - idleStart_).count();
+            auto writeTime = (writeEnd - writeStart_).count();
+            const double alpha = 0.9;
+            utilisation_ = (1.0 - alpha) * utilisation_ + alpha * ((double)writeTime / totalTime);
+        }
+        idleStart_ = writeEnd;
+
+        return job;
     }
-
-    return nullptr;
+    catch (...) {
+        error_ = true;
+        throw;
+    }
 }
 
 void ExporterJobWriter::close()
@@ -189,8 +161,7 @@ void ExporterWorker::run()
             }
             else
             {
-                // submit it to be written (frame may be out of order)
-                jobWriter_.push(std::move(job));
+                job->willEncode.set_value(std::move(job));  //!!! this could be done by encode
 
                 // dequeue any in-order writes
                 // NOTE: other threads may be blocked here, even though they could get on with encoding
@@ -298,9 +269,6 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
         ++(*currentFrame_);
     }
 
-    // keep the writing order consistent with dispatches here
-    jobWriter_.enqueueVideoFrameWrite(iFrame);
-
     // throttle the caller - if the queue is getting too long we should wait
     while ((jobEncoder_.nEncodeJobs() >= std::max(size_t{ 1 }, workers_.size() - 1))  // first worker either encodes or writes
         && !expandWorkerPoolToCapacity()  // if we can, expand the pool
@@ -318,6 +286,10 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
 
     ExportJob job = videoJobFreeList_.allocate();
     job->iFrameOrPts = iFrame;
+    job->willEncode = std::promise<ExportJob>();
+
+    // keep the writing order consistent with dispatches here
+    jobWriter_.enqueueWrite(std::move(job->willEncode.get_future()));
 
     // take a copy of the frame, in the codec preferred manner. we immediately return and let
     // the renderer get on with its job.
@@ -331,9 +303,6 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
 
 void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) const
 {
-    // keep the writing order consistent with dispatches here
-    jobWriter_.enqueueAudioFrameWrite(pts);
-
     // throttle the caller - if the queue is getting too long we should wait
     while ((jobEncoder_.nEncodeJobs() >= std::max(size_t{ 1 }, workers_.size() - 1))  // first worker either encodes or writes
         && !expandWorkerPoolToCapacity()  // if we can, expand the pool
@@ -351,7 +320,11 @@ void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) cons
 
     ExportJob job = audioJobFreeList_.allocate();
     job->iFrameOrPts = pts;
-    
+    job->willEncode = std::promise<ExportJob>();
+
+    // keep the writing order consistent with dispatches here
+    jobWriter_.enqueueWrite(std::move(job->willEncode.get_future()));
+
     // take a copy of the frame, in the codec preferred manner. we immediately return and let
     // the renderer get on with its job.
     job->output.buffer.resize(size);  // !!! would be nice to resize + copy in one step, avoiding zeroing

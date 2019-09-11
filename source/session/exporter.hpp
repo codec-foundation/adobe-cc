@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <future>
 #include <list>
 #include <mutex>
 #include <queue>
@@ -12,6 +13,10 @@
 
 enum class ExportJobType { Video, Audio };
 
+struct ExportJobBase;
+typedef FreeList<ExportJobBase> ExportJobFreeList;
+typedef ExportJobFreeList::PooledT ExportJob;  // either encode or write, depending on the queue its in
+
 struct ExportJobBase
 {
     ExportJobBase() {}
@@ -22,6 +27,8 @@ struct ExportJobBase
 
     int64_t iFrameOrPts{ -1 };  // for video jobs
     EncodeOutput output;
+
+    std::promise<ExportJob> willEncode;  // !!! should promise to return EncodeOutput, needs EncodeOutput pool to do this efficiently
 
     // noncopyable
     ExportJobBase(const ExportJobBase&) = delete;
@@ -47,9 +54,6 @@ struct AudioExportJob : ExportJobBase
 
 class ExporterWorker;
 
-typedef FreeList<ExportJobBase> ExporterJobFreeList;
-
-typedef ExporterJobFreeList::PooledT ExportJob;  // either encode or write, depending on the queue its in
 typedef std::queue<ExportJob> ExportJobQueue;
 typedef std::vector<ExportJob> ExportJobs;
 typedef std::list<std::unique_ptr<ExporterWorker> > ExportWorkers;
@@ -86,29 +90,25 @@ public:
     // there can be jumps in sequence where there are no source frames (Premiere Pro can skip frames)
     // so when the external host dispatches frames to us, we store the order they arrived, and write
     // them out in that order
-    void enqueueVideoFrameWrite(int64_t iFrame);
-    void enqueueAudioFrameWrite(int64_t pts);
+    void enqueueWrite(std::future<ExportJob> encoded);
 
     void close();  // call ahead of destruction in order to recognise errors
 
-    void push(ExportJob job);
     ExportJob write();  // returns the job that was written
 
     double utilisation() { return utilisation_; }
 
 private:
-
-    std::mutex mutex_;
     bool error_{false};
-    ExportJobs jobs_;
+    std::mutex mutex_;
     std::unique_ptr<MovieWriter> writer_;
     std::chrono::high_resolution_clock::time_point idleStart_;
     std::chrono::high_resolution_clock::time_point writeStart_;
 
     std::atomic<double> utilisation_;
 
-    std::mutex writeOrderMutex_;
-    std::queue<std::pair<ExportJobType, int64_t>> writeOrderQueue_; // !!! replace with promise / future
+    std::mutex writeQueueMutex_;
+    std::queue<std::future<ExportJob>> writeQueue_;
 };
 
 class ExporterWorker
@@ -162,8 +162,8 @@ private:
     mutable std::atomic<bool> error_{false};
     UniqueEncoder encoder_;
 
-    mutable ExporterJobFreeList videoJobFreeList_;
-    mutable ExporterJobFreeList audioJobFreeList_;
+    mutable ExportJobFreeList videoJobFreeList_;
+    mutable ExportJobFreeList audioJobFreeList_;
     mutable ExporterJobEncoder jobEncoder_;
     mutable ExporterJobWriter jobWriter_;
 
