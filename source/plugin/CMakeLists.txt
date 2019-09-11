@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
+if (APPLE)
+    set (Foundation_CC_PLUGIN_INSTALL_DESTINATION "Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore")
+else ()
+    set (Foundation_CC_PLUGIN_INSTALL_DESTINATION .)
+endif ()
+
 # plugins
 add_subdirectory(adobe_shared)
 add_subdirectory(after_effects)

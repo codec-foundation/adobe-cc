@@ -39,6 +39,9 @@ if (MSVC)
     )
 endif(MSVC)
 
+if (NOT DEFINED Foundation_CC_PLUGIN_INSTALL_DESTINATION)
+    message(FATAL_ERROR "Parent must define Foundation_CC_PLUGIN_INSTALL_DESTINATION")
+endif ()
 if (APPLE)
 if (NOT DEFINED Foundation_IDENTIFIER_PREFIX)
 message(FATAL_ERROR "Parent must define Foundation_IDENTIFIER_PREFIX")
@@ -54,7 +57,7 @@ set_target_properties(CodecPluginFoundation
 install(
   TARGETS CodecPluginFoundation
   RUNTIME
-  BUNDLE DESTINATION .
-  LIBRARY DESTINATION .
+  BUNDLE DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}
+  LIBRARY DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}
   COMPONENT plugin
 )
