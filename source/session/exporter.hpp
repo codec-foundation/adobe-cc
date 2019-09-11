@@ -47,13 +47,13 @@ struct AudioExportJob : ExportJobBase
 
 class ExporterWorker;
 
-typedef std::unique_ptr<ExportJobBase> ExportJob;  // either encode or write, depending on the queue its in
+typedef FreeList<ExportJobBase> ExporterJobFreeList;
+
+typedef ExporterJobFreeList::PooledT ExportJob;  // either encode or write, depending on the queue its in
 typedef std::queue<ExportJob> ExportJobQueue;
 typedef std::vector<ExportJob> ExportJobs;
 typedef std::list<std::unique_ptr<ExporterWorker> > ExportWorkers;
 
-typedef FreeList<ExportJob> VideoExporterJobFreeList;
-typedef FreeList<ExportJob> AudioExporterJobFreeList;
 
 // thread-safe encoder of ExportJob
 class ExporterJobEncoder
@@ -116,8 +116,6 @@ class ExporterWorker
 public:
     ExporterWorker(
         std::atomic<bool>& error,
-        VideoExporterJobFreeList& videoFreeList,
-        AudioExporterJobFreeList& audioFreeList,
         ExporterJobEncoder& encoder, ExporterJobWriter& writer);
     ~ExporterWorker();
 
@@ -129,8 +127,6 @@ private:
 
     std::atomic<bool> quit_;
     std::atomic<bool>& error_;
-    VideoExporterJobFreeList& videoJobFreeList_;
-    AudioExporterJobFreeList& audioJobFreeList_;
     ExporterJobEncoder& jobEncoder_;
     ExporterJobWriter& jobWriter_;
 };
@@ -166,8 +162,8 @@ private:
     mutable std::atomic<bool> error_{false};
     UniqueEncoder encoder_;
 
-    mutable VideoExporterJobFreeList videoJobFreeList_;
-    mutable AudioExporterJobFreeList audioJobFreeList_;
+    mutable ExporterJobFreeList videoJobFreeList_;
+    mutable ExporterJobFreeList audioJobFreeList_;
     mutable ExporterJobEncoder jobEncoder_;
     mutable ExporterJobWriter jobWriter_;
 

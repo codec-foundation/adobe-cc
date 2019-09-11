@@ -118,8 +118,8 @@ void ImporterJobReader::close()
     reader_.reset(0);
 }
 
-ImporterWorker::ImporterWorker(std::atomic<bool>& error, ImporterJobFreeList& freeList, ImporterJobReader& reader, ImporterJobDecoder& decoder)
-    : error_(error), jobFreeList_(freeList), jobDecoder_(decoder), jobReader_(reader)
+ImporterWorker::ImporterWorker(std::atomic<bool>& error, ImporterJobReader& reader, ImporterJobDecoder& decoder)
+    : error_(error), jobDecoder_(decoder), jobReader_(reader)
 {
     worker_ = std::thread(worker_start, std::ref(*this));
 }
@@ -168,7 +168,6 @@ void ImporterWorker::run()
                         {
                             decoded->onSuccess(*decoded->codecJob);
                         }
-                        jobFreeList_.free(std::move(decoded));
                         break;
                     }
 
@@ -191,7 +190,7 @@ Importer::Importer(
     std::unique_ptr<MovieReader> movieReader,
     UniqueDecoder decoder)
     : decoder_(std::move(decoder)),
-      jobFreeList_(std::function<ImportJob()>([&]() {
+      jobFreeList_(std::function<std::unique_ptr<ImportJobImpl>()>([&]() {
         return std::make_unique<ImportJob::element_type>(decoder_->create());
       })),
       jobReader_(std::move(movieReader)),
@@ -203,7 +202,7 @@ Importer::Importer(
     int startingThreads = std::min(5, concurrentThreadsSupported_);
     for (size_t i = 0; i < startingThreads; ++i)
     {
-        workers_.push_back(std::make_unique<ImporterWorker>(error_, jobFreeList_, jobReader_, jobDecoder_));
+        workers_.push_back(std::make_unique<ImporterWorker>(error_, jobReader_, jobDecoder_));
     }
 }
 
@@ -279,7 +278,7 @@ bool Importer::expandWorkerPoolToCapacity() const
     bool isNotBufferLimited = true;  // TODO: get memoryUsed < maxMemoryCapacity from Adobe API
 
     if (isNotThreadLimited && isNotInputLimited && isNotBufferLimited) {
-        workers_.push_back(std::make_unique<ImporterWorker>(error_, jobFreeList_, jobReader_, jobDecoder_));
+        workers_.push_back(std::make_unique<ImporterWorker>(error_, jobReader_, jobDecoder_));
         return true;
     }
     return false;

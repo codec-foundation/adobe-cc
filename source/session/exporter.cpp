@@ -146,10 +146,8 @@ void ExporterJobWriter::close()
 
 ExporterWorker::ExporterWorker(
     std::atomic<bool>& error,
-    VideoExporterJobFreeList& videoFreeList, AudioExporterJobFreeList& audioFreeList,
     ExporterJobEncoder& encoder, ExporterJobWriter& writer)
     : quit_(false), error_(error),
-      videoJobFreeList_(videoFreeList), audioJobFreeList_(audioFreeList),
       jobEncoder_(encoder), jobWriter_(writer)
 {
     worker_ = std::thread(worker_start, std::ref(*this));
@@ -204,15 +202,8 @@ void ExporterWorker::run()
                 do
                 {
                     ExportJob written = jobWriter_.write();
-
                     if (written)
                     {
-                        if (written->type() == ExportJobType::Video)
-                            videoJobFreeList_.free(std::move(written));
-                        else if (written->type() == ExportJobType::Audio)
-                            audioJobFreeList_.free(std::move(written));
-                        else
-                            throw std::runtime_error("unhandled job type for freelists");
                         break;
                     }
 
@@ -246,7 +237,7 @@ Exporter::Exporter(
     concurrentThreadsSupported_ = std::thread::hardware_concurrency() + 1;  // we assume at least 1 thread will be blocked by io write
 
     // 1 thread to start with, super large textures can exhaust memory immediately with multiple jobs
-    workers_.push_back(std::make_unique<ExporterWorker>(error_, videoJobFreeList_, audioJobFreeList_, jobEncoder_, jobWriter_));
+    workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_));
 }
 
 Exporter::~Exporter()
@@ -378,7 +369,7 @@ bool Exporter::expandWorkerPoolToCapacity() const
     bool isNotBufferLimited = true;  // TODO: get memoryUsed < maxMemoryCapacity from Adobe API
 
     if (isNotThreadLimited && isNotOutputLimited && isNotBufferLimited) {
-        workers_.push_back(std::make_unique<ExporterWorker>(error_, videoJobFreeList_, audioJobFreeList_, jobEncoder_, jobWriter_));
+        workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_));
         return true;
     }
     return false;
