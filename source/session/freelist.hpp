@@ -1,35 +1,47 @@
 #ifndef FREELIST_HPP
 #define FREELIST_HPP
 
-// thread-safe freelist. T must be unique_ptr<>
+#include <functional>
+#include <memory>
+
+// thread-safe freelist
 template<class T>
 class FreeList
 {
 public:
-    FreeList(std::function<T ()> factory) : factory_(factory) {}
+    typedef std::unique_ptr<T, std::function<void(T*)>> PooledT;
 
-    T allocate()
+    FreeList(std::function<std::unique_ptr<T> ()> factory) : factory_(factory) {}
+
+    PooledT allocate()
     {
         std::lock_guard<std::mutex> guard(mutex_);
-        if (!freeList_.empty())
-        {
-            T t = std::move(freeList_.back());
-            freeList_.pop_back();
-            return t;
+        if (freeList_.empty()) {
+            return PooledT(
+                factory_().release(),
+                [&](T* repool) { free(repool); }
+            );
         }
-        else
-            return factory_();
-    }
-    void free(T t)
-    {
-        std::lock_guard<std::mutex> guard(mutex_);
-        freeList_.push_back(std::move(t));
+        else {
+            auto t = std::move(freeList_.back());
+            freeList_.pop_back();
+            return PooledT(
+                t.release(),
+                [&](T* repool) { free(repool); }
+            );
+        }
     }
 
 private:
+    void free(T* t)
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        freeList_.push_back(std::unique_ptr<T>(t));
+    }
+
     std::mutex mutex_;
-    std::vector<T> freeList_;
-    std::function<T ()> factory_;
+    std::vector<std::unique_ptr<T>> freeList_;
+    std::function<std::unique_ptr<T> ()> factory_;
 };
 
 #endif

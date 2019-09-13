@@ -27,11 +27,11 @@ struct ImportJobImpl
 
 class ImporterWorker;
 
-typedef std::unique_ptr<ImportJobImpl> ImportJob;  // either read or decode, depending on the queue its in
+typedef FreeList<ImportJobImpl> ImporterJobFreeList;
+typedef ImporterJobFreeList::PooledT ImportJob;  // either read or decode, depending on the queue its in
 typedef std::vector<ImportJob> ImportJobQueue;
 typedef std::list<std::unique_ptr<ImporterWorker> > ImportWorkers;
 
-typedef FreeList<ImportJob> ImporterJobFreeList;
 
 // thread-safe reader of ImportJob
 class ImporterJobReader
@@ -81,7 +81,7 @@ private:
 class ImporterWorker
 {
 public:
-    ImporterWorker(std::atomic<bool>& error, ImporterJobFreeList& freeList, ImporterJobReader& reader, ImporterJobDecoder& decoder);
+    ImporterWorker(std::atomic<bool>& error, ImporterJobReader& reader, ImporterJobDecoder& decoder);
     ~ImporterWorker();
 
     static void worker_start(ImporterWorker& worker);
@@ -92,7 +92,6 @@ private:
 
     std::atomic<bool> quit_{false};
     std::atomic<bool>& error_;
-    ImporterJobFreeList& jobFreeList_;
     ImporterJobDecoder& jobDecoder_;
     ImporterJobReader& jobReader_;
 };

@@ -39,8 +39,9 @@ public:
 
     //void addVideoStream(VideoFormat videoFormat, int width, int height, int64_t frameRateNumerator, int64_t frameRateDenominator);
     void addAudioStream(int numChannels, int sampleRate, int bytesPerSample, AudioEncoding encoding);
-    void writeFrame(const uint8_t *data, size_t size);
+    void writeVideoFrame(const uint8_t* data, size_t size);
     void writeAudioFrame(const uint8_t *data, size_t size, int64_t pts);
+
     void flush();        // internally frames are not written immediately but are queued
     void writeHeader();
     void writeTrailer();
@@ -74,8 +75,9 @@ private:
     FormatContext formatContext_;
     IOContext ioContext_;
     AVStream *videoStream_;
-    AVStream *audioStream_{nullptr};     // nullptr on audio not present
     AVRational streamTimebase_;
+    AVStream *audioStream_{nullptr};     // nullptr on audio not present
+
     int64_t iFrame_{0};
 
     bool closed_{false};
