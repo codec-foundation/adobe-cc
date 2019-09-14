@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-
 # presets asset files
-
 # win64 installer
-
 #   as of publication, details of where to place installed files comes
 #   from emailed advice; SDK docs are for previous versions.
 #
@@ -21,15 +18,11 @@ cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
 #
 #   TODO: update to use registry keys once this is possible
 #
-
 # set CPACK_PACKAGE_* in codec-specific installer CMakeLists.txt
 # set CPACK_RESOURCE_FILE_LICENSE in codec-specific installer. Please include foundation license.txt contents within.
 # set CPACK_NSIS_* in codec-specific installer
-
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
-
 set(CPACK_COMPONENTS_ALL plugin ${Foundation_CODEC_SPECIFIC_COMPONENTS})
-
 # macOS installer specific settings
 if (APPLE)
     set (CPACK_GENERATOR productbuild)
@@ -50,27 +43,17 @@ if (APPLE)
     
     # Default is Darwin, not useful for generated file names:
     set (CPACK_SYSTEM_NAME macOS)
-
 endif (APPLE)
-
 # NSIS component specific settings
 set(CPACK_NSIS_plugin_INSTALL_DIRECTORY "$PROGRAMFILES64\\\\Adobe\\\\Common\\\\Plug-ins\\\\7.0\\\\MediaCore\\\\${Foundation_CODEC_NAME}")
-
-set(CPACK_NSIS_EXTRA_PREINSTALL_COMMANDS
-  "Delete \\\"$PROGRAMFILES64\\\\Adobe\\\\Common\\\\Plug-ins\\\\7.0\\\\MediaCore\\\\CodecPluginFoundation.prm\\\""
-   )
-
 # set(CPACK_INSTALL_COMMANDS, "magic command to get plugin directory and copy to it")
 # currently doing this by overriding template
 # TODO: don't override template
-
 # override modules path so we can change the nsis template
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
-
 # generic installer framework
 # This must always be after CPACK settings
 include(CPack)
-
 # components to include to installer
 cpack_add_component(plugin
     DISPLAY_NAME "Plugin"
