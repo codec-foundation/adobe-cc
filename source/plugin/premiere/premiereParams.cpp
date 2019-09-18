@@ -85,9 +85,9 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
 			SDKStringConvert::to_buffer(codec.details().premiereIncludeAlphaChannelName, includeAlphaParam.identifier);
             includeAlphaParam.paramType = exParamType_bool;
             includeAlphaParam.flags = exParamFlag_none;
-            includeAlphaValues.rangeMin.intValue = 2;
-            includeAlphaValues.rangeMax.intValue = 3;
-            includeAlphaValues.value.intValue = 2;
+            includeAlphaValues.rangeMin.intValue = 0;
+            includeAlphaValues.rangeMax.intValue = 1;
+            includeAlphaValues.value.intValue = 0;
             includeAlphaValues.disabled = kPrFalse;
             includeAlphaValues.hidden = kPrFalse;
             includeAlphaValues.disabled = kPrFalse;
