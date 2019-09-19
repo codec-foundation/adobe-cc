@@ -718,7 +718,6 @@ AEIO_AddFrame(
             return A_Err_PARAMETER;  //!!! AE generally hard crashes in event of errors
         }
     }
-
     return err; 
 };
                                 
@@ -801,7 +800,7 @@ AEIO_AddSoundChunk(
     const A_Time	*start, 
     A_u_long		num_samplesLu,
     const void		*dataPV)
-{ 
+{
     A_Err err		= A_Err_NONE;
     AEGP_SuiteHandler	suites(basic_dataP->pica_basicP);
     OutputOptionsUP optionsUP = OutputOptionsHandleWrapper::wrap(suites, outH);
@@ -825,7 +824,6 @@ AEIO_AddSoundChunk(
             num_channels * num_samplesLu * bytes_per_sample
         );
     }
-
     return err; 
 };
 
@@ -915,8 +913,7 @@ ConstructModuleInfo(
         info->flags						=	AEIO_MFlag_OUTPUT           | 
                                             AEIO_MFlag_FILE             |
                                             AEIO_MFlag_VIDEO            | 
-                                            AEIO_MFlag_AUDIO            |
-                                            AEIO_MFlag_CANT_SOUND_INTERLEAVE; //			|
+                                            AEIO_MFlag_AUDIO;
                                             // AEIO_MFlag_NO_TIME;
                                             // AEIO_MFlag_CAN_DO_MARKERS	|
                                             // AEIO_MFlag_HAS_AUX_DATA;
