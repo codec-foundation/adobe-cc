@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
-project(CodecPluginFoundation)
+project(PremierePlugin)
 
 # this is the one we will install
-add_library(CodecPluginFoundation MODULE)
+add_library(PremierePlugin MODULE)
 
-target_sources(CodecPluginFoundation
+target_sources(PremierePlugin
     PRIVATE
         premiereImporter.cpp
         premiereImporter.hpp
@@ -23,7 +23,7 @@ target_sources(CodecPluginFoundation
         targetver.h
 )
 
-target_link_libraries(CodecPluginFoundation
+target_link_libraries(PremierePlugin
     PRIVATE
         Codec
         CodecRegistration
@@ -33,8 +33,9 @@ target_link_libraries(CodecPluginFoundation
 )
 
 if (MSVC)
-    set_target_properties(CodecPluginFoundation
+    set_target_properties(PremierePlugin
         PROPERTIES
+            OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".prm"
     )
 endif(MSVC)
@@ -48,14 +49,14 @@ message(FATAL_ERROR "Parent must define Foundation_IDENTIFIER_PREFIX")
 endif ()
 endif (APPLE)
 
-set_target_properties(CodecPluginFoundation
+set_target_properties(PremierePlugin
     PROPERTIES
 	    BUNDLE TRUE
 	    MACOSX_BUNDLE_GUI_IDENTIFIER ${Foundation_IDENTIFIER_PREFIX}.pr
 )
 
 install(
-  TARGETS CodecPluginFoundation
+  TARGETS PremierePlugin
   RUNTIME
   BUNDLE DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}
   LIBRARY DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}

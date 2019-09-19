@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-project(AEXPlugin)
+project(AfterEffectsPlugin)
 
 # this is the one we will install
-add_library(AEXPlugin MODULE)
+add_library(AfterEffectsPlugin MODULE)
 
-target_sources(AEXPlugin
+target_sources(AfterEffectsPlugin
     PRIVATE
         output_module.cpp
         output_module.cpp
@@ -57,7 +57,7 @@ endif (APPLE)
 
 find_library(AppKit AppKit)
 
-target_link_libraries(AEXPlugin
+target_link_libraries(AfterEffectsPlugin
     PRIVATE
         AdobeAfterEffectsSdk
         AdobeShared
@@ -69,13 +69,14 @@ target_link_libraries(AEXPlugin
 )
 
 # Include the ffmpeg headers
-target_include_directories(AEXPlugin
+target_include_directories(AfterEffectsPlugin
     PRIVATE
 )
 
 if (MSVC)
-    set_target_properties(AEXPlugin
+    set_target_properties(AfterEffectsPlugin
         PROPERTIES
+            OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".aex"
     )
 endif(MSVC)
@@ -85,7 +86,7 @@ if (APPLE)
 endif (APPLE)
 
 if (APPLE AND NOT XCODE)
-    target_sources(AEXPlugin
+    target_sources(AfterEffectsPlugin
         PRIVATE
             ${CMAKE_BINARY_DIR}/SettingsViewController.nib)
 
@@ -100,7 +101,7 @@ if (APPLE AND NOT XCODE)
         message(FATAL_ERROR "Can't find ibtool to build macOS interface file.")
     endif ()
 elseif (APPLE)
-    target_sources(AEXPlugin
+    target_sources(AfterEffectsPlugin
         PRIVATE
             ${CMAKE_BINARY_DIR}/SettingsViewController.xib)
 endif ()
@@ -119,7 +120,7 @@ if (APPLE)
     endif (APPLE_RESOURCE)
 endif (APPLE)
 
-set_target_properties(AEXPlugin
+set_target_properties(AfterEffectsPlugin
     PROPERTIES
 	    BUNDLE TRUE
 	    MACOSX_BUNDLE_GUI_IDENTIFIER ${${PROJECT_NAME}_OSX_BUNDLE_IDENTIFIER}
@@ -142,7 +143,7 @@ if (APPLE)
 endif (APPLE)
 
 install(
-  TARGETS AEXPlugin
+  TARGETS AfterEffectsPlugin
   RUNTIME
   BUNDLE DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}
   LIBRARY DESTINATION ${Foundation_CC_PLUGIN_INSTALL_DESTINATION}
