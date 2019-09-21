@@ -9,13 +9,16 @@
 #include "codec_registration.hpp"
 
 // dialog comtrols
-enum {
+enum : int32_t {
 	OUT_noUI = -1,
 	OUT_OK = IDOK,
 	OUT_Cancel = IDCANCEL,
     OUT_SubTypes_Menu = 3,
-    OUT_Quality_Menu = 4,
-    OUT_ChunkCount_Menu = 5
+    OUT_SubTypes_Label = 4,
+    OUT_Quality_Menu = 5,
+    OUT_Quality_Label = 6,
+    OUT_ChunkCount_Menu = 7,
+    OUT_ChunkCount_Label = 8
 };
 
 
@@ -35,81 +38,92 @@ static BOOL CALLBACK DialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARA
 		case WM_INITDIALOG:
 			do{
                 const auto& codec = *CodecRegistry::codec();
-
-                bool hasSubTypes(codec.details().subtypes.size() > 0);
-                if (hasSubTypes) {
-                    // set up the menu
+                {
                     HWND menu = GetDlgItem(hwndDlg, OUT_SubTypes_Menu);
+                    bool hasSubTypes(codec.details().subtypes.size() > 0);
+                    if (hasSubTypes) {
+                        // set up the menu
+                        auto subTypes = codec.details().subtypes;
+                        auto subType = subTypes.begin();
 
-                    auto subTypes = codec.details().subtypes;
-                    auto subType = subTypes.begin();
+                        for (int i = 0; i < subTypes.size(); ++i, ++subType)
+                        {
+                            SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)subType->second.c_str());
+                            DWORD subTypeVal = reinterpret_cast<DWORD&>(subType->first);
+                            SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)subTypeVal); // subtype fourcc
 
-                    for (int i = 0; i < subTypes.size(); ++i, ++subType)
+                            if (subTypeVal == g_SubType)
+                                SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                        }
+                    }
+                    else
                     {
-                        SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)subType->second.c_str());
-                        DWORD subTypeVal = reinterpret_cast<DWORD&>(subType->first);
-                        SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)subTypeVal); // subtype fourcc
-
-                        if (subTypeVal == g_SubType)
-                            SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                        // do not show subtypes item or label
+                        ShowWindow(menu, SW_HIDE);
+                        HWND label = GetDlgItem(hwndDlg, OUT_SubTypes_Label);
+                        ShowWindow(label, SW_HIDE);
                     }
                 }
-                else
-                {
-                    //!!! TODO do not show subtypes item
-                }
 
-                if (codec.details().quality.hasQualityForAnySubType)
                 {
-                    // set up the menu
                     HWND menu = GetDlgItem(hwndDlg, OUT_Quality_Menu);
-
-                    auto qualities = codec.details().quality.descriptions;
-                    auto quality = qualities.begin();
-
-                    for (int i = 0; i < qualities.size(); ++i, ++quality)
+                    if (codec.details().quality.hasQualityForAnySubType)
                     {
-                        SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)quality->second.c_str());
-                        SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)(DWORD)quality->first); // this is the quality enum
+                        // set up the menu
+                        auto qualities = codec.details().quality.descriptions;
+                        auto quality = qualities.begin();
 
-                        if (quality->first == g_Quality)
-                            SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                        for (int i = 0; i < qualities.size(); ++i, ++quality)
+                        {
+                            SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)quality->second.c_str());
+                            SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)(DWORD)quality->first); // this is the quality enum
+
+                            if (quality->first == g_Quality)
+                                SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                        }
+
+                        // enable / disable depending upon selected codec subtype
+                        auto enabledForSelectedCodecSubtype = codec.details().hasQualityForSubType(reinterpret_cast<Codec4CC&>(g_SubType));
+                        EnableWindow( menu, enabledForSelectedCodecSubtype ? TRUE : FALSE );
                     }
-
-                    //!!! TODO enable / disable depending upon selected codec subtype
+                    else
+                    {
+                        // do not show qualities item
+                        ShowWindow(menu, SW_HIDE);
+                    }
                 }
-                else
-                {
-                    //!!! TODO do not show qualities item
-                }
 
-                if (codec.details().hasChunkCount)
                 {
-                    // set up the menu
                     HWND menu = GetDlgItem(hwndDlg, OUT_ChunkCount_Menu);
-
-                    auto descriptions = std::array<std::pair<int, std::string>, 9>{
-                        { {0, "Auto"}, {1, "1"}, {2, "2"}, { 3, "3"}, { 4, "4"},
-                        { 5, "5"}, { 6, "6"}, { 7, "7" }, { 8, "8" }
-                    } };
-                    auto description = descriptions.begin();
-
-                    for (int i = 0; i < descriptions.size(); ++i, ++description)
+                    if (codec.details().hasChunkCount)
                     {
-                        SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)description->second.c_str());
-                        SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)(DWORD)description->first);
+                        // set up the menu
+                        auto descriptions = std::array<std::pair<int, std::string>, 9>{
+                            { {0, "Auto"}, {1, "1"}, {2, "2"}, { 3, "3"}, { 4, "4"},
+                            { 5, "5"}, { 6, "6"}, { 7, "7" }, { 8, "8" }
+                        } };
+                        auto description = descriptions.begin();
 
-                        if (description->first == g_ChunkCount)
-                            SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                        for (int i = 0; i < descriptions.size(); ++i, ++description)
+                        {
+                            SendMessage(menu, (UINT)CB_ADDSTRING, (WPARAM)wParam, (LPARAM)(LPCTSTR)description->second.c_str());
+                            SendMessage(menu, (UINT)CB_SETITEMDATA, (WPARAM)i, (LPARAM)(DWORD)description->first);
+
+                            if (description->first == g_ChunkCount) {
+                                SendMessage(menu, CB_SETCURSEL, (WPARAM)i, (LPARAM)0);
+                            }
+                        }
                     }
+                    else
+                    {
+                        // do not show qualities item
+                        ShowWindow(menu, SW_HIDE);
+                        HWND label = GetDlgItem(hwndDlg, OUT_ChunkCount_Label);
+                        ShowWindow(label, SW_HIDE);
+                    }
+                }
+            } while(0);
 
-                    //!!! TODO enable / disable depending upon selected codec subtype
-                }
-                else
-                {
-                    //!!! TODO do not show chunk count item
-                }
-            }while(0);
 
 			return TRUE;
  
