@@ -22,7 +22,7 @@ cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
 # set CPACK_RESOURCE_FILE_LICENSE in codec-specific installer. Please include foundation license.txt contents within.
 # set CPACK_NSIS_* in codec-specific installer
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
-set(CPACK_COMPONENTS_ALL plugin ${Foundation_CODEC_SPECIFIC_COMPONENTS})
+set(CPACK_COMPONENTS_ALL plugin Presets ${Foundation_CUSTOM_INSTALLER_COMPONENTS})
 # macOS installer specific settings
 if (APPLE)
     set (CPACK_GENERATOR productbuild)
@@ -51,6 +51,30 @@ set(CPACK_NSIS_plugin_INSTALL_DIRECTORY "$PROGRAMFILES64\\\\Adobe\\\\Common\\\\P
 # TODO: don't override template
 # override modules path so we can change the nsis template
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
+
+# presets asset files
+
+if (DEFINED Foundation_PRESETS_DIR)
+    install(
+        DIRECTORY
+            "${Foundation_PRESETS_DIR}"
+        DESTINATION
+            "$<IF:$<PLATFORM_ID:Darwin>,Library/Application Support/Hap for Adobe CC/Presets,Presets>"
+        COMPONENT
+            Presets
+    )
+else ()
+    message(NOTICE "Foundation_PRESETS_DIR is not defined, no presets will be installed")
+endif ()
+
+# codec specific component install paths
+set(CPACK_NSIS_Presets_INSTALL_DIRECTORY "$PROFILE\\\\Documents\\\\Adobe\\\\Adobe\ Media\ Encoder\\\\13.0")
+
+# macOS presets install script
+if (APPLE)
+    set(CPACK_POSTFLIGHT_PRESETS_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/postinstall)
+endif (APPLE)
+
 # generic installer framework
 # This must always be after CPACK settings
 include(CPack)
@@ -60,3 +84,8 @@ cpack_add_component(plugin
     DESCRIPTION "plugin module"
     REQUIRED
 )
+cpack_add_component(Presets
+    DISPLAY_NAME "Presets"
+    DESCRIPTION "Presets"
+)
+
