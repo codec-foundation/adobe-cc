@@ -38,7 +38,13 @@ if (MSVC)
             OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".prm"
     )
-endif(MSVC)
+elseif (APPLE)
+# macOS plugins have a common extension, so identify the host in the name
+    set_target_properties(PremierePlugin
+        PROPERTIES
+            OUTPUT_NAME "${Foundation_CODEC_NAME}PremierePlugin"
+    )
+endif()
 
 if (NOT DEFINED Foundation_CC_PLUGIN_INSTALL_DESTINATION)
     message(FATAL_ERROR "Parent must define Foundation_CC_PLUGIN_INSTALL_DESTINATION")

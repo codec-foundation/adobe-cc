@@ -4,6 +4,13 @@ project(AfterEffectsPlugin)
 # this is the one we will install
 add_library(AfterEffectsPlugin MODULE)
 
+if (MSVC)
+    set(${PROJECT_NAME}_OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin")
+elseif (APPLE)
+# macOS plugins have a common extension, so identify the host in the name
+    set(${PROJECT_NAME}_OUTPUT_NAME "${Foundation_CODEC_NAME}AfterEffectsPlugin")
+endif()
+
 target_sources(AfterEffectsPlugin
     PRIVATE
         output_module.cpp
@@ -21,7 +28,7 @@ target_sources(AfterEffectsPlugin
         $<$<PLATFORM_ID:Darwin>:mac/FNDObjC.h>
         $<$<PLATFORM_ID:Darwin>:mac/FNDControlViewController.h>
         $<$<PLATFORM_ID:Darwin>:mac/PkgInfo>
-        $<$<PLATFORM_ID:Darwin>:${CMAKE_BINARY_DIR}/${PROJECT_NAME}.rsrc>
+        $<$<PLATFORM_ID:Darwin>:${CMAKE_BINARY_DIR}/${${PROJECT_NAME}_OUTPUT_NAME}.rsrc>
 )
 
 if (NOT DEFINED Foundation_IDENTIFIER_PREFIX)
@@ -73,10 +80,14 @@ target_include_directories(AfterEffectsPlugin
     PRIVATE
 )
 
+set_target_properties(AfterEffectsPlugin
+        PROPERTIES
+            OUTPUT_NAME "${${PROJECT_NAME}_OUTPUT_NAME}"
+)
+
 if (MSVC)
     set_target_properties(AfterEffectsPlugin
         PROPERTIES
-            OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".aex"
     )
 endif(MSVC)
@@ -109,8 +120,8 @@ endif ()
 if (APPLE)
     find_program(APPLE_RESOURCE Rez)
     if (APPLE_RESOURCE)
-        add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.rsrc
-                            COMMAND ${APPLE_RESOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/output_module.r -define __MACH__ -define CODEC_NAME="${Foundation_CODEC_NAME}" -arch x86_64 -useDF -isysroot ${CMAKE_OSX_SYSROOT} -i "$<JOIN:$<TARGET_PROPERTY:AdobeAfterEffectsSdk,INTERFACE_INCLUDE_DIRECTORIES>,;-i;>" -o ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.rsrc
+        add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/${${PROJECT_NAME}_OUTPUT_NAME}.rsrc
+                            COMMAND ${APPLE_RESOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/output_module.r -define __MACH__ -define CODEC_NAME="${Foundation_CODEC_NAME}" -arch x86_64 -useDF -isysroot ${CMAKE_OSX_SYSROOT} -i "$<JOIN:$<TARGET_PROPERTY:AdobeAfterEffectsSdk,INTERFACE_INCLUDE_DIRECTORIES>,;-i;>" -o ${CMAKE_BINARY_DIR}/${${PROJECT_NAME}_OUTPUT_NAME}.rsrc
                             COMMENT "Creating macOS resource file"
                             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_module.r AdobeAfterEffectsSdk
                             VERBATIM
@@ -129,7 +140,7 @@ set_target_properties(AfterEffectsPlugin
 if (APPLE)
 # These could be a RESOURCE property on the target, however CMake gives a misleading warning about RESOURCE properties
     set_source_files_properties(
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.rsrc
+        ${CMAKE_BINARY_DIR}/${${PROJECT_NAME}_OUTPUT_NAME}.rsrc
         PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
     if (XCODE)
         set_source_files_properties(
