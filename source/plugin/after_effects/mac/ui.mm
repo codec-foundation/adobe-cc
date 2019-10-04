@@ -297,10 +297,18 @@ bool ui_OutDialog(Codec4CC& subType, int &quality, int& chunkCount, void *platfo
         NSModalResponse response = [[NSApplication sharedApplication] runModalForWindow:window];
         if (response == NSModalResponseOK)
         {
-            subType = fromTag(view.getItem(static_cast<int>(UIItem::SubType))->getSelectedMenuItemTag());
-            quality = view.getItem(static_cast<int>(UIItem::Quality))->getSelectedMenuItemTag();
-            UIValueItem *chunks = view.getItem(static_cast<int>(UIItem::Chunks));
-            chunkCount = chunks->getUseAuto() ? 0 : chunks->getStepperValue();
+            UIValueItem *subtypeItem = view.getItem(static_cast<int>(UIItem::SubType));
+            if (subtypeItem) {
+                subType = fromTag(subtypeItem->getSelectedMenuItemTag());
+            }
+            UIValueItem *qualityItem = view.getItem(static_cast<int>(UIItem::Quality));
+            if (qualityItem) {
+                quality = qualityItem->getSelectedMenuItemTag();
+            }
+            UIValueItem *chunksItem = view.getItem(static_cast<int>(UIItem::Chunks));
+            if (chunksItem) {
+                chunkCount = chunksItem->getUseAuto() ? 0 : chunksItem->getStepperValue();
+            }
             didSave = true;
         }
         [window close];
