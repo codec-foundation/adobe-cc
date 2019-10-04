@@ -73,7 +73,7 @@ ImportJob ImporterJobReader::read()
 }
 
 ImporterJobDecoder::ImporterJobDecoder(Decoder& decoder)
-    : decoder_(decoder), nDecodeJobs_(0)
+    : nDecodeJobs_(0)
 {
 }
 

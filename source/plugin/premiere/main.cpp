@@ -9,9 +9,6 @@
 #include <vector>
 #include <locale>
 
-const int k_chunkingMin = 1;
-const int k_chunkingMax = 64;
-
 csSDK_int32 GetNumberOfAudioChannels(csSDK_int32 audioChannelType);
 static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, MovieWriter *writer);
 

@@ -6,8 +6,8 @@
 
 using namespace std::chrono_literals;
 
-ExporterJobEncoder::ExporterJobEncoder(Encoder& encoder)
-    : encoder_(encoder), nEncodeJobs_(0)
+ExporterJobEncoder::ExporterJobEncoder()
+    : nEncodeJobs_(0)
 {
 }
 
@@ -202,7 +202,6 @@ Exporter::Exporter(
     audioJobFreeList_(std::function<std::unique_ptr<AudioExportJob>()>([&]() {
                         return std::make_unique<AudioExportJob>();
                       })),
-            jobEncoder_(*encoder_),
     jobWriter_(std::move(movieWriter))
 {
     concurrentThreadsSupported_ = std::thread::hardware_concurrency() + 1;  // we assume at least 1 thread will be blocked by io write
@@ -289,7 +288,7 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
     job->willEncode = std::promise<ExportJob>();
 
     // keep the writing order consistent with dispatches here
-    jobWriter_.enqueueWrite(std::move(job->willEncode.get_future()));
+    jobWriter_.enqueueWrite(job->willEncode.get_future());
 
     // take a copy of the frame, in the codec preferred manner. we immediately return and let
     // the renderer get on with its job.
@@ -323,7 +322,7 @@ void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) cons
     job->willEncode = std::promise<ExportJob>();
 
     // keep the writing order consistent with dispatches here
-    jobWriter_.enqueueWrite(std::move(job->willEncode.get_future()));
+    jobWriter_.enqueueWrite(job->willEncode.get_future());
 
     // take a copy of the frame, in the codec preferred manner. we immediately return and let
     // the renderer get on with its job.

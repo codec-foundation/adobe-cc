@@ -70,8 +70,6 @@ public:
     uint64_t nDecodeJobs() const { return nDecodeJobs_; }
 
 private:
-    Decoder& decoder_;  // must have thread-safe processing functions
-
     std::mutex mutex_;
     ImportJobQueue queue_;
 

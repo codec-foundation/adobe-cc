@@ -579,7 +579,6 @@ ImporterImportAudio7(
 
     auto audioDef = (*ldataH)->movieReader->audioDef();
     int numChannels = audioDef.numChannels;
-    int sampleRate = audioDef.sampleRate;
     int bytesPerSample = audioDef.bytesPerSample;
     AudioEncoding encoding = audioDef.encoding;
 
@@ -650,7 +649,7 @@ ImporterGetSourceVideo(
     imFileRef            fileRef, 
     imSourceVideoRec    *sourceVideoRec)
 {
-    prMALError        result      = malNoError;
+    //!!!prMALError        result      = malNoError;
     imFrameFormat    *frameFormat;
     char             *frameBuffer;
 

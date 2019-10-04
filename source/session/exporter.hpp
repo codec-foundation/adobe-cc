@@ -63,7 +63,7 @@ typedef std::list<std::unique_ptr<ExporterWorker> > ExportWorkers;
 class ExporterJobEncoder
 {
 public:
-    ExporterJobEncoder(Encoder& encoder);
+    ExporterJobEncoder();
 
     void push(ExportJob job);
     ExportJob encode();
@@ -71,8 +71,6 @@ public:
     uint64_t nEncodeJobs() const { return nEncodeJobs_;  }
 
 private:
-    Encoder& encoder_;  // must have thread-safe processing functions
-
     std::mutex mutex_;
     ExportJobQueue queue_;
 
