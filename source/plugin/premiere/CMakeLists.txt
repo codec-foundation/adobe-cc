@@ -55,6 +55,22 @@ message(FATAL_ERROR "Parent must define Foundation_IDENTIFIER_PREFIX")
 endif ()
 endif (APPLE)
 
+# rn Preset install to plugin is macOS-only
+if (APPLE)
+    if (DEFINED Foundation_PRESETS)
+        # Install presets to Resources/Presets
+        target_sources(PremierePlugin
+            PRIVATE
+                ${Foundation_PRESETS}
+        )
+        set_source_files_properties(
+            ${Foundation_PRESETS}
+            PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/Presets"
+        )
+        # See CMakeLists.txt in installer for script to handle install to CC locations
+    endif ()
+endif (APPLE)
+
 set_target_properties(PremierePlugin
     PROPERTIES
 	    BUNDLE TRUE
