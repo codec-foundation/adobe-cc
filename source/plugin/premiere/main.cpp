@@ -6,6 +6,7 @@
 #include "exporter.hpp"
 #include "configure.hpp"
 #include "string_conversion.hpp"
+#include "presets.hpp"
 #include <vector>
 #include <locale>
 
@@ -76,10 +77,29 @@ DllExport PREMPLUGENTRY xSDKExport(csSDK_int32 selector, exportStdParms* stdParm
 	return result;
 }
 
+static void checkPresetsInstalled()
+{
+    /*
+     Check for up(or down)graded versions of CC missing presets
+     */
+    auto src_dir = Presets::getSourceDirectoryPath();
+    auto presets = Presets::getPresetFileNames();
+    auto dsts = Presets::getDestinationDirectoryPaths();
+    for (const auto &destination : dsts)
+    {
+        for (const auto &preset : presets)
+        {
+            Presets::copy(preset, src_dir, destination, false);
+        }
+    }
+}
+
 prMALError startup(exportStdParms* stdParms, exExporterInfoRec* infoRec)
 {
     if (infoRec->exportReqIndex == 0)
     {
+        checkPresetsInstalled();
+
         // singleton needed from here on
         const auto &codec = *CodecRegistry::codec();
 
