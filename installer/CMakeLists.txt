@@ -92,7 +92,7 @@ include(CPack)
 # components to include to installer
 cpack_add_component(plugin
     DISPLAY_NAME "Plugin"
-    DESCRIPTION "plugin module"
+    DESCRIPTION "Plugins for Adobe Creative Cloud"
     REQUIRED
 )
 if (DEFINED Foundation_PRESETS)
