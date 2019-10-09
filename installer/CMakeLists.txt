@@ -72,7 +72,7 @@ if (DEFINED Foundation_PRESETS)
     else ()
         install(
             FILES
-                "${Foundation_PRESETS}"
+                ${Foundation_PRESETS}
             DESTINATION
                 "Presets"
             COMPONENT
