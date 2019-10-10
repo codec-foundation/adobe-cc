@@ -68,6 +68,26 @@ std::vector<Presets::PathType> Presets::getPresetFileNames()
     return names;
 }
 
+bool Presets::directoryExists(const Presets::PathType &directory)
+{
+    if (directory.empty())
+    {
+        return false;
+    }
+    // TODO: 
+    return false;
+}
+
+bool Presets::createDirectory(const Presets::PathType &directory)
+{
+    if (directory.empty())
+    {
+        return false;
+    }
+    // TODO: 
+    return false;
+}
+
 void Presets::copy(const Presets::PathType& file, const Presets::PathType& source_dir, const Presets::PathType& destination_dir, bool replace)
 {
 	if (source_dir.empty() || destination_dir.empty() || file.empty())

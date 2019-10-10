@@ -80,16 +80,35 @@ DllExport PREMPLUGENTRY xSDKExport(csSDK_int32 selector, exportStdParms* stdParm
 static void checkPresetsInstalled()
 {
     /*
-     Check for up(or down)graded versions of CC missing presets
+     Because presets have a new install location for every major CC version, but plugins
+     are in a fixed location, it is possible for the plugin to be loaded without presets
+     when a new version of CC is installed.
+
+     Check for up(or down)graded versions of CC without presets, and install them
      */
-    auto src_dir = Presets::getSourceDirectoryPath();
     auto presets = Presets::getPresetFileNames();
+    // Do nothing if we have no presets at the plugin install location
+    if (presets.empty())
+    {
+        return;
+    }
+    auto src_dir = Presets::getSourceDirectoryPath();
     auto dsts = Presets::getDestinationDirectoryPaths();
     for (const auto &destination : dsts)
     {
-        for (const auto &preset : presets)
+        // Create the Presets directory if needed
+        bool exists = Presets::directoryExists(destination);
+        if (!exists)
         {
-            Presets::copy(preset, src_dir, destination, false);
+            exists = Presets::createDirectory(destination);
+        }
+        if (exists)
+        {
+            // Install the presets if not already present
+            for (const auto &preset : presets)
+            {
+                Presets::copy(preset, src_dir, destination, false);
+            }
         }
     }
 }

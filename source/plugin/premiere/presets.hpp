@@ -15,5 +15,7 @@ namespace Presets {
     std::vector<PathType> getDestinationDirectoryPaths();
     PathType getSourceDirectoryPath();
     std::vector<PathType> getPresetFileNames();
+    bool directoryExists(const PathType &directory);
+    bool createDirectory(const PathType &directory);
     void copy(const PathType &file, const PathType &source_dir, const PathType &destination_dir, bool replace);
 }
