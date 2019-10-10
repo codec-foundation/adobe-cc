@@ -1,9 +1,9 @@
 #include "presets.hpp"
 #include <Foundation/Foundation.h>
 
-std::vector<std::string> Presets::getDestinationDirectoryPaths()
+std::vector<Presets::PathType> Presets::getDestinationDirectoryPaths()
 {
-    std::vector<std::string> paths;
+    std::vector<PathType> paths;
     @autoreleasepool {
         NSArray *urls = [[NSFileManager defaultManager] URLsForDirectory:NSLibraryDirectory inDomains:NSLocalDomainMask];
         for (NSURL *url in urls)
@@ -37,16 +37,16 @@ static NSURL *getSourceDirectoryURL()
     return [bundle URLForResource:@"Presets" withExtension:nil];
 }
 
-std::string Presets::getSourceDirectoryPath()
+Presets::PathType Presets::getSourceDirectoryPath()
 {
     @autoreleasepool {
         return [[getSourceDirectoryURL() path] cStringUsingEncoding:NSUTF8StringEncoding];
     }
 }
 
-std::vector<std::string> Presets::getPresetFileNames()
+std::vector<Presets::PathType> Presets::getPresetFileNames()
 {
-    std::vector<std::string> names;
+    std::vector<Presets::PathType> names;
     @autoreleasepool {
         NSURL *source = getSourceDirectoryURL();
         if (source)
@@ -64,7 +64,7 @@ std::vector<std::string> Presets::getPresetFileNames()
     return names;
 }
 
-void Presets::copy(const std::string &file, const std::string &source_dir, const std::string &destination_dir, bool replace)
+void Presets::copy(const Presets::PathType &file, const Presets::PathType &source_dir, const Presets::PathType &destination_dir, bool replace)
 {
     if (source_dir.empty() || destination_dir.empty() || file.empty())
     {

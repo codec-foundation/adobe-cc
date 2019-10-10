@@ -90,7 +90,13 @@ if (APPLE)
                     PROPERTY COMPILE_DEFINITIONS FOUNDATION_MACOSX_BUNDLE_GUI_IDENTIFIER=@\"${Foundation_IDENTIFIER_PREFIX}.pr\"
     )
 endif (APPLE)
-
+if (MSVC)
+    # used so we can look up install location from code
+    set_property(SOURCE presets.cpp
+                    APPEND
+                    PROPERTY COMPILE_DEFINITIONS FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"
+    )
+endif (MSVC)
 install(
   TARGETS PremierePlugin
   RUNTIME

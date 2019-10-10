@@ -84,7 +84,7 @@ else ()
 endif ()
 
 # codec specific component install paths
-set(CPACK_NSIS_Presets_INSTALL_DIRECTORY "$PROFILE\\\\Documents\\\\Adobe\\\\Adobe\ Media\ Encoder\\\\13.0")
+set(CPACK_NSIS_Presets_INSTALL_DIRECTORY "$PROGRAMFILES64\\\\Adobe\\\\Common\\\\Plug-ins\\\\7.0\\\\MediaCore\\\\${Foundation_CODEC_NAME}")
 
 # generic installer framework
 # This must always be after CPACK settings
