@@ -74,8 +74,8 @@ bool Presets::directoryExists(const Presets::PathType &directory)
     {
         return false;
     }
-    // TODO: 
-    return false;
+	std::error_code error;
+	return std::filesystem::exists(directory, error) && std::filesystem::is_directory(directory, error);
 }
 
 bool Presets::createDirectory(const Presets::PathType &directory)
@@ -84,8 +84,8 @@ bool Presets::createDirectory(const Presets::PathType &directory)
     {
         return false;
     }
-    // TODO: 
-    return false;
+	std::error_code error;
+	return std::filesystem::create_directory(directory, error);
 }
 
 void Presets::copy(const Presets::PathType& file, const Presets::PathType& source_dir, const Presets::PathType& destination_dir, bool replace)
@@ -99,8 +99,6 @@ void Presets::copy(const Presets::PathType& file, const Presets::PathType& sourc
 	std::error_code error;
 	if (replace || !std::filesystem::exists(dest, error))
 	{
-		// Create directory if it doesn't already exist
-		std::filesystem::create_directories(destination_dir, error);
 		// Copy the file
 		std::filesystem::copy_file(src, dest, replace ? std::filesystem::copy_options::overwrite_existing : std::filesystem::copy_options::none, error);
 		// Ignoring error for now
