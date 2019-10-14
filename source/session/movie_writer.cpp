@@ -25,20 +25,20 @@ extern "C" {
 // Convert NTSC timebase from AE-style 29970/1000 to QT-style 30000/1001
 // any other timebases will not affected
 void convertNTSCTimebase(AVRational* timebase) {
-	static const AVRational kNTSCTimebases[] = {
-		{ 1001, 24000 },
-		{ 1001, 30000 },
-		{ 1001, 60000 },
-		{ 0, 0} };
+    static const AVRational kNTSCTimebases[] = {
+        { 1001, 24000 },
+        { 1001, 30000 },
+        { 1001, 60000 },
+        { 0, 0} };
 
-	int idx = av_find_nearest_q_idx(*timebase, kNTSCTimebases);
-	AVRational tmp = kNTSCTimebases[idx];
-	AVRational diff = av_sub_q(*timebase, tmp);
-	diff.num = FFABS(diff.num);
+    int idx = av_find_nearest_q_idx(*timebase, kNTSCTimebases);
+    AVRational tmp = kNTSCTimebases[idx];
+    AVRational diff = av_sub_q(*timebase, tmp);
+    diff.num = FFABS(diff.num);
 
-	if (av_cmp_q(diff, AVRational{ 1, tmp.den }) < 0) {
-		*timebase = tmp; //convert only if we close enough to table entry
-	}
+    if (av_cmp_q(diff, AVRational{ 1, tmp.den }) < 0) {
+        *timebase = tmp; //convert only if we close enough to table entry
+    }
 }
 
 #undef av_err2str
@@ -108,11 +108,11 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     * of which frame timestamps are represented. For fixed-fps content,
     * timebase should be 1/framerate and timestamp increments should be
     * identical to 1. */
-	av_reduce(&streamTimebase_.num, &streamTimebase_.den, frameRateDenominator, frameRateNumerator, INT32_MAX);
-	convertNTSCTimebase(&streamTimebase_);
+    av_reduce(&streamTimebase_.num, &streamTimebase_.den, frameRateDenominator, frameRateNumerator, INT32_MAX);
+    convertNTSCTimebase(&streamTimebase_);
 
     // videoStream_->time_base will later get amplified by mov file format
-	// https://github.com/FFmpeg/FFmpeg/blob/a2572e3c670db018a414e9c168eef23ec2e3abc4/libavformat/movenc.c#L6252
+    // https://github.com/FFmpeg/FFmpeg/blob/a2572e3c670db018a414e9c168eef23ec2e3abc4/libavformat/movenc.c#L6252-L6253
     videoStream_->avg_frame_rate = streamTimebase_;
     videoStream_->r_frame_rate = streamTimebase_;
     videoStream_->time_base.den = streamTimebase_.den;
