@@ -22,6 +22,24 @@ extern "C" {
 
 #include "movie_writer.hpp"
 
+// Convert NTSC timebase from AE-style 29970/1000 to QT-style 30000/1001
+// any other timebases will not affected
+void convertNTSCTimebase(AVRational& timebase) {
+	static const AVRational kNTSCTimebases[] = {
+		{ 1001, 24000 },
+		{ 1001, 30000 },
+		{ 1001, 60000 },
+		{ 0, 0} };
+
+	int idx = av_find_nearest_q_idx(timebase, kNTSCTimebases);
+	AVRational tmp = kNTSCTimebases[idx];
+	AVRational diff = av_sub_q(timebase, tmp);
+	diff.num = FFABS(diff.num);
+
+	if (av_cmp_q(diff, AVRational{ 1, tmp.den }) < 0) {
+		timebase = tmp; //convert only if we close enough to table entry
+	}
+}
 
 #undef av_err2str
 std::string av_err2str(int errnum)
@@ -56,6 +74,8 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     streamTimebase_.num = static_cast<int>(frameRateDenominator / frameRateGCD);
     streamTimebase_.den = static_cast<int>(frameRateNumerator / frameRateGCD);
     // TODO: rename streamTimebase_ to videoTimebase_ to differ video and audio streams
+	
+	convertNTSCTimebase(streamTimebase_);
 
     /* Add the video stream */
     // becomes owned by formatContext
