@@ -155,7 +155,7 @@ static std::pair<std::unique_ptr<MovieReader>, imFileRef> createMovieReader(cons
             [&, fileRef](uint8_t* buffer, size_t size) {
                 size_t read = fread(static_cast<void *>(buffer), 1, size, fileRef);
                 
-                if (read != size)
+                if (read != size && !feof(fileRef))
                     throw std::runtime_error("could not read");
                 return read;
             },
