@@ -485,11 +485,7 @@ ImporterGetInfo8(
         fileInfo8->accessModes = kRandomAccessImport;
     }
 
-    #ifdef PRWIN_ENV
     fileInfo8->vidInfo.supportsAsyncIO            = kPrTrue;
-    #elif defined PRMAC_ENV
-    fileInfo8->vidInfo.supportsAsyncIO            = kPrFalse;
-    #endif
     fileInfo8->vidInfo.supportsGetSourceVideo    = kPrTrue;
     fileInfo8->vidInfo.hasPulldown               = kPrFalse;
     fileInfo8->hasDataRate                       = kPrFalse; //!!! should be able to do thiskPrTrue;
