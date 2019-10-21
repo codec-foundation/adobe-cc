@@ -21,7 +21,12 @@ target_sources(PremierePlugin
         prstring.cpp
         prstring.hpp
         targetver.h
+        presets.hpp
+        $<$<PLATFORM_ID:Windows>:presets.cpp>
+        $<$<PLATFORM_ID:Darwin>:presets.mm>
 )
+
+find_library(Foundation Foundation)
 
 target_link_libraries(PremierePlugin
     PRIVATE
@@ -30,6 +35,7 @@ target_link_libraries(PremierePlugin
         CodecFoundationSession
         AdobePremiereSdk
         AdobeShared
+        $<$<PLATFORM_ID:Darwin>:${Foundation}>
 )
 
 if (MSVC)
@@ -77,6 +83,20 @@ set_target_properties(PremierePlugin
 	    MACOSX_BUNDLE_GUI_IDENTIFIER ${Foundation_IDENTIFIER_PREFIX}.pr
 )
 
+if (APPLE)
+    # used so we can look up bundle location from code
+    set_property(SOURCE presets.mm
+                    APPEND
+                    PROPERTY COMPILE_DEFINITIONS FOUNDATION_MACOSX_BUNDLE_GUI_IDENTIFIER=@\"${Foundation_IDENTIFIER_PREFIX}.pr\"
+    )
+endif (APPLE)
+if (MSVC)
+    # used so we can look up install location from code
+    set_property(SOURCE presets.cpp
+                    APPEND
+                    PROPERTY COMPILE_DEFINITIONS FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"
+    )
+endif (MSVC)
 install(
   TARGETS PremierePlugin
   RUNTIME

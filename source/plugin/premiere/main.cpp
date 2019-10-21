@@ -6,6 +6,7 @@
 #include "exporter.hpp"
 #include "configure.hpp"
 #include "string_conversion.hpp"
+#include "presets.hpp"
 #include <vector>
 #include <locale>
 
@@ -76,10 +77,48 @@ DllExport PREMPLUGENTRY xSDKExport(csSDK_int32 selector, exportStdParms* stdParm
 	return result;
 }
 
+static void checkPresetsInstalled()
+{
+    /*
+     Because presets have a new install location for every major CC version, but plugins
+     are in a fixed location, it is possible for the plugin to be loaded without presets
+     when a new version of CC is installed.
+
+     Check for up(or down)graded versions of CC without presets, and install them
+     */
+    auto presets = Presets::getPresetFileNames();
+    // Do nothing if we have no presets at the plugin install location
+    if (presets.empty())
+    {
+        return;
+    }
+    auto src_dir = Presets::getSourceDirectoryPath();
+    auto dsts = Presets::getDestinationDirectoryPaths();
+    for (const auto &destination : dsts)
+    {
+        // Create the Presets directory if needed
+        bool exists = Presets::directoryExists(destination);
+        if (!exists)
+        {
+            exists = Presets::createDirectory(destination);
+        }
+        if (exists)
+        {
+            // Install the presets if not already present
+            for (const auto &preset : presets)
+            {
+                Presets::copy(preset, src_dir, destination, false);
+            }
+        }
+    }
+}
+
 prMALError startup(exportStdParms* stdParms, exExporterInfoRec* infoRec)
 {
     if (infoRec->exportReqIndex == 0)
     {
+        checkPresetsInstalled();
+
         // singleton needed from here on
         const auto &codec = *CodecRegistry::codec();
 
