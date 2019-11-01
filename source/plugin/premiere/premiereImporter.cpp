@@ -9,6 +9,8 @@
 
 #ifdef PRMAC_ENV
 #include <os/log.h>
+#include <mach-o/dyld.h> //!!! hack using _NSGetExecutablePath
+#include <string>        //!!! for hack
 #endif
 
 using namespace std::chrono_literals;
@@ -818,16 +820,16 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imAnalysis:
-            //barf            result = ImporterAnalysis(stdParms,
-            //barf                                      reinterpret_cast<imFileRef>(param1),
-            //barf                                      reinterpret_cast<imAnalysisRec*>(param2));
+            //!!!            result = ImporterAnalysis(stdParms,
+            //!!!                                      reinterpret_cast<imFileRef>(param1),
+            //!!!                                      reinterpret_cast<imAnalysisRec*>(param2));
             result = imUnsupported;
             break;
 
         case imDataRateAnalysis:
-            //barf            result = ImporterDataRateAnalysis(stdParms,
-            //barf                                              reinterpret_cast<imFileRef>(param1),
-            //barf                                              reinterpret_cast<imDataRateAnalysisRec*>(param2));
+            //!!!            result = ImporterDataRateAnalysis(stdParms,
+            //!!!                                              reinterpret_cast<imFileRef>(param1),
+            //!!!                                              reinterpret_cast<imDataRateAnalysisRec*>(param2));
             result = imUnsupported;
             break;
 
@@ -838,9 +840,32 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imGetSubTypeNames:
-            result = ImporterGetSubTypeNames(stdParms,
-                (csSDK_int32)reinterpret_cast<size_t>(param1),
-                reinterpret_cast<imSubTypeDescriptionRec**>(param2));
+#ifdef PRWIN_ENV
+            result = ImporterGetSubTypeNames(stdParms,  (csSDK_int32)reinterpret_cast<size_t>(param1), reinterpret_cast<imSubTypeDescriptionRec**>(param2));
+#else
+            {
+                //!!! the above is broken on AEX on Mac - not only does it not register the importer successfully, it
+                //!!! also breaks all imports for the same file extension
+
+                //!!! Have not yet found information on how to correctly respond to this selector, and responding with
+                //!!! imUnsupported also breaks AEX on Mac
+
+                //!!! Only workaround so far (avoids breakage, but still doesn't register importer for AEX on Mac) is to return
+                //!!! imBadFormatIndex, which is supposed to be for imGetIndFormat
+                
+                //!!! However then this breaks Premiere on Mac. So attempt to find AfterEffects alone
+                char path[1024];
+                uint32_t size = sizeof(path);
+                if ((_NSGetExecutablePath(path, &size) == 0)
+                    && (std::string(path).find("Adobe After Effects")!=std::string::npos))
+                {
+                    result = imBadFormatIndex;
+                }
+                else {
+                    result = ImporterGetSubTypeNames(stdParms,  (csSDK_int32)reinterpret_cast<size_t>(param1), reinterpret_cast<imSubTypeDescriptionRec**>(param2));
+                }
+            }
+#endif
             break;
 
         case imSaveFile8:
@@ -883,8 +908,8 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imGetPreferredFrameSize:
-            //barf            result = ImporterPreferredFrameSize(stdParms,
-            //barf                                                reinterpret_cast<imPreferredFrameSizeRec*>(param1));
+            //!!!            result = ImporterPreferredFrameSize(stdParms,
+            //!!!                                                reinterpret_cast<imPreferredFrameSizeRec*>(param1));
             result = imUnsupported;
             break;
 
