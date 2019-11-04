@@ -185,6 +185,8 @@ ImporterInit(
     imStdParms        *stdParms, 
     imImportInfoRec    *importInfo)
 {
+    csSDK_int32 afterEffectsSig = reinterpret_cast<const csSDK_int32&>(CodecRegistry::codec()->details().afterEffectsSig);
+    importInfo->importerType = afterEffectsSig;
     importInfo->setupOnDblClk = kPrFalse;
     importInfo->canSave = kPrFalse;
 
@@ -840,32 +842,7 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imGetSubTypeNames:
-#ifdef PRWIN_ENV
-            result = ImporterGetSubTypeNames(stdParms,  (csSDK_int32)reinterpret_cast<size_t>(param1), reinterpret_cast<imSubTypeDescriptionRec**>(param2));
-#else
-            {
-                //!!! the above is broken on AEX on Mac - not only does it not register the importer successfully, it
-                //!!! also breaks all imports for the same file extension
-
-                //!!! Have not yet found information on how to correctly respond to this selector, and responding with
-                //!!! imUnsupported also breaks AEX on Mac
-
-                //!!! Only workaround so far (avoids breakage, but still doesn't register importer for AEX on Mac) is to return
-                //!!! imBadFormatIndex, which is supposed to be for imGetIndFormat
-                
-                //!!! However then this breaks Premiere on Mac. So attempt to find AfterEffects alone
-                char path[1024];
-                uint32_t size = sizeof(path);
-                if ((_NSGetExecutablePath(path, &size) == 0)
-                    && (std::string(path).find("Adobe After Effects")!=std::string::npos))
-                {
-                    result = imBadFormatIndex;
-                }
-                else {
-                    result = ImporterGetSubTypeNames(stdParms,  (csSDK_int32)reinterpret_cast<size_t>(param1), reinterpret_cast<imSubTypeDescriptionRec**>(param2));
-                }
-            }
-#endif
+            result = imUnsupported;
             break;
 
         case imSaveFile8:
