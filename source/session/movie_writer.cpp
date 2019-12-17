@@ -1,8 +1,8 @@
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include <algorithm>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cmath>
 #include <string>
 #include <numeric>
 
@@ -22,31 +22,51 @@ extern "C" {
 
 #include "movie_writer.hpp"
 
-// Convert NTSC timebase from AE-style 29970/1000 to QT-style 30000/1001
-// any other timebases will not affected
-void convertNTSCTimebase(AVRational* timebase) {
-    static const AVRational kNTSCTimebases[] = {
-        { 1001, 24000 },
-        { 1001, 30000 },
-        { 1001, 60000 },
-        { 0, 0} };
-
-    int idx = av_find_nearest_q_idx(*timebase, kNTSCTimebases);
-    AVRational tmp = kNTSCTimebases[idx];
-    AVRational diff = av_sub_q(*timebase, tmp);
-    diff.num = FFABS(diff.num);
-
-    if (av_cmp_q(diff, AVRational{ 1, tmp.den }) < 0) {
-        *timebase = tmp; //convert only if we close enough to table entry
-    }
-}
-
 #undef av_err2str
 std::string av_err2str(int errnum)
 {
-    char buffer[AV_ERROR_MAX_STRING_SIZE] = {0};
+    char buffer[AV_ERROR_MAX_STRING_SIZE] = { 0 };
     av_make_error_string(buffer, AV_ERROR_MAX_STRING_SIZE, errnum);
     return buffer;
+}
+
+Rational SimplifyAndSnapToMpegFrameRate(Rational rational)
+{
+    // simplify
+    auto gcd = std::gcd(rational.numerator, rational.denominator);
+    rational = Rational{ rational.numerator / gcd, rational.denominator / gcd };
+
+    // rates from https://www.ffmpeg.org/doxygen/4.1/mpeg12framerate_8c.html#a30c641622e85153c829698bfbd59e5d5
+    const std::array<Rational, 14>  mpegFrameRates{
+        Rational{24000, 1001},
+        Rational{   24,    1},
+        Rational{   25,    1},
+        Rational{30000, 1001},
+        Rational{   30,    1},
+        Rational{480000, 1001},   // unofficial, but may be found in the wild
+        Rational{   50,    1},
+        Rational{60000, 1001},
+        Rational{   60,    1},
+        Rational{   15,    1},
+        Rational{    5,    1},
+        Rational{   10,    1},
+        Rational{   12,    1},
+        Rational{   15,    1}
+    };
+
+    const auto tolerance = 0.0001;
+
+    auto nearest = std::find_if(mpegFrameRates.begin(), mpegFrameRates.end(),
+        [&](const auto& candidate) { // rational / candidate will be near to 1.0 if it's a match 
+            return std::abs((double(rational.numerator * candidate.denominator)
+                / double(rational.denominator * candidate.numerator) - 1.0) <= tolerance);
+        }
+    );
+
+    if (nearest != mpegFrameRates.end())
+        return *nearest;
+
+    return rational;
 }
 
 extern "C" {
@@ -55,7 +75,7 @@ extern "C" {
 // =======================================================
 MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
     int width, int height, int encodedBitDepth,
-    int64_t frameRateNumerator, int64_t frameRateDenominator,
+    Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     MovieFile file, MovieErrorCallback onError,
     bool writeMoovTagEarly)
@@ -108,8 +128,7 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     * of which frame timestamps are represented. For fixed-fps content,
     * timebase should be 1/framerate and timestamp increments should be
     * identical to 1. */
-    av_reduce(&streamTimebase_.num, &streamTimebase_.den, frameRateDenominator, frameRateNumerator, INT32_MAX);
-    convertNTSCTimebase(&streamTimebase_);
+    av_reduce(&streamTimebase_.num, &streamTimebase_.den, frameRate.denominator, frameRate.numerator, INT32_MAX);
 
     // videoStream_->time_base will later get amplified by mov file format
     // https://github.com/FFmpeg/FFmpeg/blob/a2572e3c670db018a414e9c168eef23ec2e3abc4/libavformat/movenc.c#L6252-L6253
