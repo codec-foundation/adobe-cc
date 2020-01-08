@@ -218,7 +218,9 @@ void ExporterWorker::run()
             {
                 FDN_DEBUG("exporting ", job->name);
 
-                job->willEncode.set_value(std::move(job));  //!!! this could be done by encode
+                // ownership of job is about to be passed onwards, so pull willEncode off it first
+                auto willEncode = std::move(job->willEncode);
+                willEncode.set_value(std::move(job));  //!!! this could be done by encode
 
                 // dequeue any in-order writes
                 // NOTE: other threads may be blocked here, even though they could get on with encoding
