@@ -17,7 +17,7 @@ else()
 endif()
 
 # library dependencies
-add_subdirectory(external)
+# !!! already included - add_subdirectory(external)
 
 # documentation
 # add_subdirectory(doc)
