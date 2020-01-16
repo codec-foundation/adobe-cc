@@ -1,33 +1,16 @@
 #include <fstream>
 #include <iostream>
-
-#ifdef WIN32
-#include <ShlObj.h>
-#endif
+#include <string>
 
 #include "config.hpp"
+#include "platform_paths.hpp"
+
+using namespace std::string_literals;
 
 const std::string kConfigFilename{"config.json"};
 
 namespace fdn
 {
-
-#ifdef WIN32
-const PathType codecPath()
-{
-    PathType path;
-    PWSTR programs;
-    HRESULT hr = SHGetKnownFolderPath(FOLDERID_ProgramFilesX64, 0, NULL, &programs);
-    if (SUCCEEDED(hr))
-    {
-        path = programs;
-        path = path / "Adobe" / "Common" / "Plug-Ins" / "7.0" / "MediaCore" / FOUNDATION_CODEC_NAME;
-        CoTaskMemFree(programs);
-        return path;
-    }
-    throw std::runtime_error("could not get program files path");
-}
-#endif
 
 static std::string defaultLoad()
 {
@@ -42,14 +25,21 @@ static json load()
 
     try {
 #ifdef WIN32
-        auto path = codecPath() / kConfigFilename;
+        auto path = getConfigurationPath() / kConfigFilename;
 #else
-        auto path = codecPath() + "/" + kConfigFilename;
+        auto path = getConfigurationPath() + "/" + kConfigFilename;
 #endif
         std::ifstream in(path);
         if(!in.is_open())
         {
-            throw std::runtime_error((std::string("could not open ") + path.string()).c_str());
+            throw std::runtime_error(("could not open "s +
+#ifndef __APPLE__
+                                      path.string()
+#else
+                                      path
+                                      // !!! < 10.15 needs this
+#endif
+                                      ).c_str());
         }
         in >> loaded;
     } catch (...) {

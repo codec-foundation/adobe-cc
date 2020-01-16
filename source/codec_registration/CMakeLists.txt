@@ -12,18 +12,20 @@ add_library(CodecRegistration
     logging.hpp
     util.cpp
     util.hpp
+     $<$<PLATFORM_ID:Windows>:platform_paths_windows.cpp>
+    platform_paths.hpp
+     $<$<PLATFORM_ID:Darwin>:platform_paths_mac.mm>
 )
 
 # !!! We are dependent on this so the configuration file location gets compiled in
 # !!! ideally the hosting environment would pass in this information
-if (MSVC)
-    # used so we can look up install location from code, name log files, label dialog boxes
-    target_compile_definitions(CodecRegistration PUBLIC "FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"")
-endif (MSVC)
+
+# used so we can look up install location from code, name log files, label dialog boxes
+target_compile_definitions(CodecRegistration PUBLIC "FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"")
 
 target_link_libraries(CodecRegistration
     nlohmann_json::nlohmann_json
-    StackWalker
+     $<$<PLATFORM_ID:Windows>:StackWalker>
 )
 
 target_include_directories(CodecRegistration

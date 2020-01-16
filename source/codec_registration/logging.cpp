@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 
 #include "config.hpp"
 #include "logging.hpp"
@@ -149,7 +150,14 @@ private:
                 full << severityAsString << text;
                 break;
             case LoggerLocationStyle::ShortWithThreadName:
-                full << std::filesystem::path(codeLocation->file).filename().string() << "(" << codeLocation->line << ") "
+                full
+#ifndef __APPLE__
+                    << std::filesystem::path(codeLocation->file).filename().string()
+#else
+                    << codeLocation->file
+                    // !!! required for < 10.15
+#endif
+                    << "(" << codeLocation->line << ") "
                     << threadNameIt->second << " " << severityAsString << text;
                 break;
             case LoggerLocationStyle::LongWithThreadName:
@@ -162,14 +170,20 @@ private:
 #ifdef WIN32
             OutputDebugString(full.str().c_str());
 #else
-            os_log_debug(OS_LOG_DEFAULT, "%s error - %s", CodecRegistry::codec()->logName().c_str(), ex.what());
+            os_log_debug(OS_LOG_DEFAULT, "%s - %s", FOUNDATION_CODEC_NAME, full.str().c_str());
 #endif
         }
     }
 
     void messageOutputLoop(PathType logPath, LoggerLocationStyle locationStyle)
     {
-        PathType logFileName = logPath / (FOUNDATION_CODEC_NAME "-log.txt");
+        PathType logFileName =
+#ifndef __APPLE__
+            logPath / (FOUNDATION_CODEC_NAME "-log.txt");
+#else
+            logPath + "/" + (FOUNDATION_CODEC_NAME "-log.txt");
+            // !!! < 10.15 needs this
+#endif
         std::ofstream out;
         if (logFileName != "")
             out.open(logFileName.c_str());

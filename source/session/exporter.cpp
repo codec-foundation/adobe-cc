@@ -388,7 +388,7 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
     auto start = std::chrono::high_resolution_clock::now();
     static_cast<VideoExportJob&>(*job).codecJob->copyExternalToLocal(data, stride, format);
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> durationInMs = endWait - startWait;
+    std::chrono::duration<double, std::milli> durationInMs = end - start;
     FDN_DEBUG(job->name, " queuing took ", durationInMs.count(), "ms");
 
     jobEncoder_.push(std::move(job));

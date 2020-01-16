@@ -462,7 +462,7 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
         //--- this error flag may be overwritten fairly deeply in callbacks so original error may be
         //--- passed up to Adobe
         csSDK_int32 outPathLength{ 255 };
-        wchar_t     outputFilePath[256] = { '\0' };
+        prUTF16Char outputFilePath[256] = { '\0' };
         exportFileSuite->GetPlatformPath(fileObject, &outPathLength, outputFilePath);
         FDN_INFO("opening ", SDKStringConvert::to_string(outputFilePath), " for writing");
 
