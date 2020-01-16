@@ -44,6 +44,7 @@ if (MSVC)
             OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".prm"
     )
+    install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> DESTINATION bin OPTIONAL)
 elseif (APPLE)
 # macOS plugins have a common extension, so identify the host in the name
     set_target_properties(PremierePlugin

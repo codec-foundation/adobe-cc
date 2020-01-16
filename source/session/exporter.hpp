@@ -25,6 +25,8 @@ struct ExportJobBase
     virtual ExportJobType type() const { throw std::runtime_error("no type"); }
     virtual void encode() { }; // readies output 
 
+    std::string name;           // for debugging
+
     int64_t iFrameOrPts{ -1 };  // for video jobs
     EncodeOutput output;
 
@@ -114,10 +116,11 @@ class ExporterWorker
 public:
     ExporterWorker(
         std::atomic<bool>& error,
-        ExporterJobEncoder& encoder, ExporterJobWriter& writer);
+        ExporterJobEncoder& encoder, ExporterJobWriter& writer,
+        const std::string& name);
     ~ExporterWorker();
 
-    static void worker_start(ExporterWorker& worker);
+     void worker_start();
 
 private:
     std::thread worker_;
@@ -127,6 +130,8 @@ private:
     std::atomic<bool>& error_;
     ExporterJobEncoder& jobEncoder_;
     ExporterJobWriter& jobWriter_;
+
+    std::string name_;
 };
 
 

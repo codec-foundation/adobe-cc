@@ -4,11 +4,11 @@
 #include "async_importer.hpp"
 #include "codec_registration.hpp"
 #include "importer.hpp"
+#include "logging.hpp"
 #include "prstring.hpp"
 #include "string_conversion.hpp"
 
 #ifdef PRMAC_ENV
-#include <os/log.h>
 #include <mach-o/dyld.h> //!!! hack using _NSGetExecutablePath
 #include <string>        //!!! for hack
 #endif
@@ -44,6 +44,8 @@ AdobeImporterAPI::~AdobeImporterAPI()
 #ifdef PRWIN_ENV
 static std::pair<std::unique_ptr<MovieReader>, HANDLE> createMovieReader(const std::wstring& filePath)
 {
+    FDN_INFO("opening ", SDKStringConvert::to_string(filePath), " for reading");
+
     HANDLE fileRef = CreateFileW(filePath.c_str(),
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -125,6 +127,8 @@ static std::pair<std::unique_ptr<MovieReader>, HANDLE> createMovieReader(const s
 
 static std::pair<std::unique_ptr<MovieReader>, imFileRef> createMovieReader(const std::wstring& filePath)
 {
+    FDN_INFO("opening ", SDKStringConvert::to_string(filePath), " for reading");
+
     FILE *fileRef = fopen(SDKStringConvert::to_string(filePath).c_str(), "rb");
     
     // Check to see if file is valid
@@ -757,16 +761,20 @@ PREMPLUGENTRY DllExport xImportEntry (
     void            *param1, 
     void            *param2)
 {
+    FDN_DEBUG("xImportEntry selector=", selector);
+
     prMALError result = imUnsupported;
 
+    try {
     static bool noImporter = (!CodecRegistry::codec()->createDecoder);
     if (noImporter)
         return result;
 
-    try {
         switch (selector)
         {
         case imInit:
+            FDN_DEBUG("imInit");
+            FDN_INFO("initialising importer");
             result = ImporterInit(stdParms,
                 reinterpret_cast<imImportInfoRec*>(param1));
             break;
@@ -775,6 +783,7 @@ PREMPLUGENTRY DllExport xImportEntry (
             // case imShutdown:
 
         case imGetPrefs8:
+            FDN_DEBUG("imGetPrefs8");
             result = ImporterGetPrefs8(stdParms,
                 reinterpret_cast<imFileAccessRec8*>(param1),
                 reinterpret_cast<imGetPrefsRec*>(param2));
@@ -784,44 +793,52 @@ PREMPLUGENTRY DllExport xImportEntry (
             // case imSetPrefs:
 
         case imGetInfo8:
+            FDN_DEBUG("imGetInfo8");
             result = ImporterGetInfo8(stdParms,
                 reinterpret_cast<imFileAccessRec8*>(param1),
                 reinterpret_cast<imFileInfoRec8*>(param2));
             break;
 
         case imImportAudio7:
+            FDN_DEBUG("imImportAudio7");
             result = ImporterImportAudio7(stdParms,
                 reinterpret_cast<imFileRef>(param1),
                 reinterpret_cast<imImportAudioRec7*>(param2));
             break;
 
         case imOpenFile8:
+            FDN_DEBUG("imOpenFile8");
             result = ImporterOpenFile8(stdParms,
                 reinterpret_cast<imFileRef*>(param1),
                 reinterpret_cast<imFileOpenRec8*>(param2));
             break;
 
         case imQuietFile:
+            FDN_DEBUG("imQuietFile");
             result = ImporterQuietFile(stdParms,
                 reinterpret_cast<imFileRef*>(param1),
                 param2);
             break;
 
         case imCloseFile:
+            FDN_DEBUG("imCloseFile");
             result = ImporterCloseFile(stdParms,
                 reinterpret_cast<imFileRef*>(param1),
                 param2);
             break;
 
         case imGetTimeInfo8:
+            FDN_DEBUG("imGetTimeInfo8");
             result = imUnsupported;
             break;
 
         case imSetTimeInfo8:
+            FDN_DEBUG("imSetTimeInfo8");
             result = imUnsupported;
             break;
 
         case imAnalysis:
+            FDN_DEBUG("imAnalysis");
             //!!!            result = ImporterAnalysis(stdParms,
             //!!!                                      reinterpret_cast<imFileRef>(param1),
             //!!!                                      reinterpret_cast<imAnalysisRec*>(param2));
@@ -829,6 +846,7 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imDataRateAnalysis:
+            FDN_DEBUG("imDataRateAnalysis");
             //!!!            result = ImporterDataRateAnalysis(stdParms,
             //!!!                                              reinterpret_cast<imFileRef>(param1),
             //!!!                                              reinterpret_cast<imDataRateAnalysisRec*>(param2));
@@ -836,32 +854,39 @@ PREMPLUGENTRY DllExport xImportEntry (
             break;
 
         case imGetIndFormat:
+            FDN_DEBUG("imGetIndFormat");
             result = ImporterGetIndFormat(stdParms,
                 reinterpret_cast<csSDK_size_t>(param1),
                 reinterpret_cast<imIndFormatRec*>(param2));
             break;
 
         case imGetSubTypeNames:
+            FDN_DEBUG("imGetSubTypeNames");
             result = imUnsupported;
             break;
 
         case imSaveFile8:
+            FDN_DEBUG("imSaveFile8");
             result = imUnsupported;
             break;
 
         case imDeleteFile8:
+            FDN_DEBUG("imDeleteFile8");
             result = imUnsupported;
             break;
 
         case imGetMetaData:
+            FDN_DEBUG("imGetMetaData");
             result = imUnsupported;
             break;
 
         case imSetMetaData:
+            FDN_DEBUG("imSetMetaData");
             result = imUnsupported;
             break;
 
         case imGetIndPixelFormat:
+            FDN_DEBUG("imGetIndPixelFormat");
             result = ImporterGetIndPixelFormat(stdParms,
                 reinterpret_cast<csSDK_size_t>(param1),
                 reinterpret_cast<imIndPixelFormatRec*>(param2));
@@ -869,34 +894,41 @@ PREMPLUGENTRY DllExport xImportEntry (
 
             // Importers that support the Premiere Pro 2.0 API must return malSupports8 for this selector
         case imGetSupports8:
+            FDN_DEBUG("imGetSupports8");
             result = malSupports8;
             break;
 
         case imCheckTrim8:
+            FDN_DEBUG("imCheckTrim8");
             result = imUnsupported;
             break;
 
         case imTrimFile8:
+            FDN_DEBUG("imTrimFile8");
             result = imUnsupported;
             break;
 
         case imCalcSize8:
+            FDN_DEBUG("imCalcSize8");
             result = imUnsupported;
             break;
 
         case imGetPreferredFrameSize:
+            FDN_DEBUG("imGetPreferredFrameSize");
             //!!!            result = ImporterPreferredFrameSize(stdParms,
             //!!!                                                reinterpret_cast<imPreferredFrameSizeRec*>(param1));
             result = imUnsupported;
             break;
 
         case imGetSourceVideo:
+            FDN_DEBUG("imGetSourceVideo");
             result = ImporterGetSourceVideo(stdParms,
                 reinterpret_cast<imFileRef>(param1),
                 reinterpret_cast<imSourceVideoRec*>(param2));
             break;
 
         case imCreateAsyncImporter:
+            FDN_DEBUG("imCreateAsyncImporter");
             result = ImporterCreateAsyncImporter(stdParms,
                 reinterpret_cast<imAsyncImporterCreationRec*>(param1));
             break;
@@ -904,12 +936,13 @@ PREMPLUGENTRY DllExport xImportEntry (
     }
     catch (const std::exception& ex)
     {
-        // !!! appears to be no way to provide an import error string
-#ifdef PRWIN_ENV
-        OutputDebugString((CodecRegistry::codec()->logName() + " error - " + ex.what()).c_str());
-#else
-        os_log_debug(OS_LOG_DEFAULT, "%s error - %s", CodecRegistry::codec()->logName().c_str(), ex.what());
-#endif
+        FDN_ERROR("import error: ", ex.what());
+
+        result = malUnknownError;
+    }
+    catch (...)
+    {
+        FDN_ERROR("unknown import error");
 
         result = malUnknownError;
     }

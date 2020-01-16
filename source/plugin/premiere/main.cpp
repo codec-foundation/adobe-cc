@@ -1,4 +1,5 @@
 #include "configure.hpp"
+#include "logging.hpp"
 #include "main.hpp"
 #include "premiereParams.hpp"
 #include "prstring.hpp"
@@ -10,71 +11,147 @@
 #include <vector>
 #include <locale>
 
+#ifdef WIN32
+#include <Windows.h>
+#include "StackWalker.h"
+#endif
+
+
 csSDK_int32 GetNumberOfAudioChannels(csSDK_int32 audioChannelType);
 static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, MovieWriter *writer);
 
+// For SEH and stack dump on win32 this is called from an SEH wrapper
+prMALError wrapped_xSDKExport(csSDK_int32 selector, exportStdParms* stdParmsP, void* param1, void* param2)
+{
+    prMALError result = exportReturn_Unsupported;
+    
+    FDN_DEBUG("xSDKExport selector=", selector);
+
+    try {
+        switch (selector)
+        {
+        case exSelStartup:
+            FDN_DEBUG("exSelStartup");
+            FDN_INFO("Premiere plugin startup");
+            result = startup(stdParmsP, reinterpret_cast<exExporterInfoRec*>(param1));
+            break;
+
+        case exSelShutdown:
+            FDN_DEBUG("exSelShutdown");
+            FDN_INFO("Premiere plugin shutdown");
+            CodecRegistry::codec().reset();
+            break;
+
+        case exSelBeginInstance:
+            FDN_DEBUG("exSelBeginInstance");
+            result = beginInstance(stdParmsP, reinterpret_cast<exExporterInstanceRec*>(param1));
+            break;
+
+        case exSelEndInstance:
+            FDN_DEBUG("exSelEndInstance");
+            result = endInstance(stdParmsP, reinterpret_cast<exExporterInstanceRec*>(param1));
+            break;
+
+        case exSelGenerateDefaultParams:
+            FDN_DEBUG("exSelGenerateDefaultParams");
+            result = generateDefaultParams(stdParmsP, reinterpret_cast<exGenerateDefaultParamRec*>(param1));
+            break;
+
+        case exSelPostProcessParams:
+            FDN_DEBUG("exSelPostProcessParams");
+            result = postProcessParams(stdParmsP, reinterpret_cast<exPostProcessParamsRec*>(param1));
+            break;
+
+        case exSelGetParamSummary:
+            FDN_DEBUG("exSelGetParamSummary");
+            result = getParamSummary(stdParmsP, reinterpret_cast<exParamSummaryRec*>(param1));
+            break;
+
+        case exSelQueryOutputSettings:
+            FDN_DEBUG("exSelQueryOutputSettings");
+            result = queryOutputSettings(stdParmsP, reinterpret_cast<exQueryOutputSettingsRec*>(param1));
+            break;
+
+        case exSelQueryExportFileExtension:
+            FDN_DEBUG("exSelQueryExportFileExtension");
+            result = fileExtension(stdParmsP, reinterpret_cast<exQueryExportFileExtensionRec*>(param1));
+            break;
+
+        case exSelParamButton:
+            FDN_DEBUG("exSelParamButton");
+            result = paramButton(stdParmsP, reinterpret_cast<exParamButtonRec*>(param1));
+            break;
+
+        case exSelValidateParamChanged:
+            FDN_DEBUG("exSelValidateParamChanged");
+            result = validateParamChanged(stdParmsP, reinterpret_cast<exParamChangedRec*>(param1));
+            break;
+
+        case exSelValidateOutputSettings:
+            FDN_DEBUG("exSelValidateOutputSettings");
+            result = malNoError;
+            break;
+
+        case exSelExport:
+            FDN_DEBUG("exSelExport");
+            result = doExport(stdParmsP, reinterpret_cast<exDoExportRec*>(param1));
+            break;
+
+        default:
+            FDN_DEBUG("selector unhandled");
+            break;
+        }
+    }
+    catch (const std::exception& ex) {
+        FDN_ERROR("exception thrown: ", ex.what());
+        return exportReturn_ErrOther;
+    }
+
+    return result;
+}
+
+#ifdef WIN32
+class FDNStackWalker : public StackWalker
+{
+public:
+    FDNStackWalker() : StackWalker() {}
+
+    std::stringstream ss;
+
+protected:
+    virtual void OnOutput(LPCSTR szText) {
+        ss << szText;
+        StackWalker::OnOutput(szText);
+    }
+};
+
+// The exception filter function:
+LONG WINAPI ExpFilter(EXCEPTION_POINTERS* pExp, DWORD dwExpCode)
+{
+    FDNStackWalker sw;
+    sw.ShowCallstack(GetCurrentThread(), pExp->ContextRecord);
+    FDN_FATAL("SEH exception thrown - ", sw.ss.str());
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+
 DllExport PREMPLUGENTRY xSDKExport(csSDK_int32 selector, exportStdParms* stdParmsP, void* param1, void* param2)
 {
-	prMALError result = exportReturn_Unsupported;
+    prMALError result = exportReturn_Unsupported;
 
-	switch (selector)
-	{
-	case exSelStartup:
-		result = startup(stdParmsP, reinterpret_cast<exExporterInfoRec*>(param1));
-		break;
-
-    case exSelShutdown:
-        CodecRegistry::codec().reset();
-        break;
-
-	case exSelBeginInstance:
-		result = beginInstance(stdParmsP, reinterpret_cast<exExporterInstanceRec*>(param1));
-		break;
-
-	case exSelEndInstance:
-		result = endInstance(stdParmsP, reinterpret_cast<exExporterInstanceRec*>(param1));
-		break;
-
-	case exSelGenerateDefaultParams:
-		result = generateDefaultParams(stdParmsP, reinterpret_cast<exGenerateDefaultParamRec*>(param1));
-		break;
-
-	case exSelPostProcessParams:
-		result = postProcessParams(stdParmsP, reinterpret_cast<exPostProcessParamsRec*>(param1));
-		break;
-
-	case exSelGetParamSummary:
-		result = getParamSummary(stdParmsP, reinterpret_cast<exParamSummaryRec*>(param1));
-		break;
-
-	case exSelQueryOutputSettings:
-		result = queryOutputSettings(stdParmsP, reinterpret_cast<exQueryOutputSettingsRec*>(param1));
-		break;
-
-	case exSelQueryExportFileExtension:
-		result = fileExtension(stdParmsP, reinterpret_cast<exQueryExportFileExtensionRec*>(param1));
-		break;
-
-	case exSelParamButton:
-		result = paramButton(stdParmsP, reinterpret_cast<exParamButtonRec*>(param1));
-		break;
-
-	case exSelValidateParamChanged:
-		result = validateParamChanged(stdParmsP, reinterpret_cast<exParamChangedRec*>(param1));
-		break;
-
-	case exSelValidateOutputSettings:
-		result = malNoError;
-		break;
-
-	case exSelExport:
-		result = doExport(stdParmsP, reinterpret_cast<exDoExportRec*>(param1));
-		break;
-
-	default:
-		break;
-	}
-	return result;
+#ifdef WIN32
+    __try {
+#endif
+        result = wrapped_xSDKExport(selector, stdParmsP, param1, param2);
+#ifdef WIN32
+    }
+    __except (ExpFilter(GetExceptionInformation(), GetExceptionCode()))
+    {
+        return exportReturn_ErrOther;
+    }
+#endif
+    return result;
 }
 
 static void checkPresetsInstalled()
@@ -180,6 +257,8 @@ prMALError beginInstance(exportStdParms* stdParmsP, exExporterInstanceRec* insta
     // convenience callback
     auto report = settings->exporterUtilitySuite->ReportEvent;
     auto pluginId = instanceRecP->exporterPluginID;
+
+    // !!! integrate into FD_* 
     settings->reportError = [report, pluginId](const std::string& error) {
 
         StringForPr title(CodecRegistry::logName() + " - ERROR");
@@ -190,6 +269,8 @@ prMALError beginInstance(exportStdParms* stdParmsP, exExporterInstanceRec* insta
             title,
             detail);
     };
+
+    // !!! integrate into FD_*
     settings->logMessage = [report, pluginId](const std::string& message) {
 
         StringForPr title(CodecRegistry::logName());
@@ -380,6 +461,11 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
     fileWrapper.onOpenForWrite = [=]() {
         //--- this error flag may be overwritten fairly deeply in callbacks so original error may be
         //--- passed up to Adobe
+        csSDK_int32 outPathLength{ 255 };
+        wchar_t     outputFilePath[256] = { '\0' };
+        exportFileSuite->GetPlatformPath(fileObject, &outPathLength, outputFilePath);
+        FDN_INFO("opening ", SDKStringConvert::to_string(outputFilePath), " for writing");
+
         prMALError error = exportFileSuite->Open(fileObject);
         if (malNoError != error)
             throw std::runtime_error("couldn't open output file");
@@ -597,6 +683,8 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             //     isn't placed ahead of mdat
             // => simplest way out is to redo the export, without the guess, and let adobe do its copy
 
+            FDN_WARNING("incorrect estimate of header size; re-exporting");
+
             // start with as clean a slate as possible
             try {
                 settings->exporter.reset(nullptr);
@@ -625,6 +713,8 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     }
     catch (...)
     {
+        FDN_DEBUG("exception thrown in renderAndWriteAllVideo");
+
         settings->exporter.reset(nullptr);
         throw;
     }
@@ -770,11 +860,13 @@ prMALError doExport(exportStdParms* stdParmsP, exDoExportRec* exportInfoP)
     }
     catch (const std::exception& ex)
     {
+        FDN_ERROR("exception thrown during export", ex.what());
         settings->reportError(ex.what());
         return (error == malNoError) ? malUnknownError : error;
     }
     catch (...)
     {
+        FDN_ERROR("unknown exception thrown during export");
         settings->reportError("unspecified error while rendering and writing video");
         return (error == malNoError) ? malUnknownError : error;
     }

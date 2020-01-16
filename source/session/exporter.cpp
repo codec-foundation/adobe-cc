@@ -2,9 +2,29 @@
 #include <optional>
 #include <thread>
 
+#include "config.hpp"
 #include "exporter.hpp"
+#include "logging.hpp"
+
+#ifdef WIN32
+#define NOMINMAX
+#include <Windows.h>
+#endif
 
 using namespace std::chrono_literals;
+using namespace std::string_literals;
+using json = nlohmann::json;
+
+struct ExporterConfiguration
+{
+    int initialWorkers{ 1 };
+    int maxWorkers{ -1 };     // use max according to hardware
+};
+
+void from_json(const json& j, ExporterConfiguration& c) {
+    j.at("initialWorkers").get_to(c.initialWorkers);
+    j.at("maxWorkers").get_to(c.maxWorkers);
+}
 
 ExporterJobEncoder::ExporterJobEncoder()
     : nEncodeJobs_(0)
@@ -33,7 +53,14 @@ ExportJob ExporterJobEncoder::encode()
 
     if (job)
     {
+        FDN_DEBUG(job->name, " encoding");
+        auto start = std::chrono::high_resolution_clock::now();
+
         job->encode();
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> duration = (end - start);
+        FDN_DEBUG(job->name, " encoding took ", duration.count(), "ms");
     }
 
     return job;
@@ -72,6 +99,8 @@ ExportJob ExporterJobWriter::write()
         // wait for the value
         ExportJob job = earliestFutureWriteJob->get();
 
+        FDN_DEBUG(job->name, " writing");
+
         // start idle timer first time we try to write to avoid false including setup time
         if (idleStart_ == std::chrono::high_resolution_clock::time_point())
             idleStart_ = std::chrono::high_resolution_clock::now();
@@ -87,14 +116,17 @@ ExportJob ExporterJobWriter::write()
         auto writeEnd = std::chrono::high_resolution_clock::now();
 
         // filtered update of utilisation_
+        auto totalTime = (writeEnd - idleStart_);
+        auto writeTime = (writeEnd - writeStart_);
         if (writeEnd != idleStart_)
         {
-            auto totalTime = (writeEnd - idleStart_).count();
-            auto writeTime = (writeEnd - writeStart_).count();
             const double alpha = 0.9;
-            utilisation_ = (1.0 - alpha) * utilisation_ + alpha * ((double)writeTime / totalTime);
+            utilisation_ = (1.0 - alpha) * utilisation_ + alpha * ((double)writeTime.count() / totalTime.count());
         }
         idleStart_ = writeEnd;
+
+        std::chrono::duration<double, std::milli> durationInMs = writeTime;
+        FDN_DEBUG(job->name, " writing took ", durationInMs.count(), "ms  utilisation=", utilisation_);
 
         return job;
     }
@@ -118,11 +150,13 @@ void ExporterJobWriter::close()
 
 ExporterWorker::ExporterWorker(
     std::atomic<bool>& error,
-    ExporterJobEncoder& encoder, ExporterJobWriter& writer)
+    ExporterJobEncoder& encoder, ExporterJobWriter& writer,
+    const std::string& name)
     : quit_(false), error_(error),
-      jobEncoder_(encoder), jobWriter_(writer)
+      jobEncoder_(encoder), jobWriter_(writer),
+      name_(name)
 {
-    worker_ = std::thread(worker_start, std::ref(*this));
+    worker_ = std::thread(&ExporterWorker::worker_start, this);
 }
 
 ExporterWorker::~ExporterWorker()
@@ -131,15 +165,36 @@ ExporterWorker::~ExporterWorker()
     worker_.join();
 }
 
+#ifdef WIN32
+//!!! hack - need to get this in a public header
+extern "C" {
+    extern LONG WINAPI FDNExpFilter(EXCEPTION_POINTERS* pExp, DWORD dwExpCode);
+}
+#endif
+
+
 // static public interface for std::thread
-void ExporterWorker::worker_start(ExporterWorker& worker)
+void ExporterWorker::worker_start()
 {
-    worker.run();
+#ifdef WIN32
+    __try {
+#endif
+        run();
+#ifdef WIN32
+    }
+    __except (FDNExpFilter(GetExceptionInformation(), GetExceptionCode()))
+    {
+        error_ = true;
+    }
+#endif
 }
 
 // private
 void ExporterWorker::run()
 {
+    FDN_NAME_THREAD(name_);
+    FDN_DEBUG("starting worker");
+
     while (!quit_)
     {
         // if we hit an error, we shouldn't keep participating
@@ -161,6 +216,8 @@ void ExporterWorker::run()
             }
             else
             {
+                FDN_DEBUG("exporting ", job->name);
+
                 job->willEncode.set_value(std::move(job));  //!!! this could be done by encode
 
                 // dequeue any in-order writes
@@ -182,8 +239,15 @@ void ExporterWorker::run()
                 } while (!error_);  // an error in a different thread will abort this thread's need to write
             }
         }
+        catch (const std::exception& ex)
+        {
+            FDN_ERROR("error during export job: ", ex.what());
+            //!!! should copy the exception and rethrow in main thread when it joins
+            error_ = true;
+        }
         catch (...)
         {
+            FDN_ERROR("unknown error during export job");
             //!!! should copy the exception and rethrow in main thread when it joins
             error_ = true;
         }
@@ -204,10 +268,28 @@ Exporter::Exporter(
                       })),
     jobWriter_(std::move(movieWriter))
 {
-    concurrentThreadsSupported_ = std::thread::hardware_concurrency() + 1;  // we assume at least 1 thread will be blocked by io write
+
+    ExporterConfiguration config;
+    try {
+        fdn::config().at("exporter").get_to(config);
+    }
+    catch (...)
+    {
+    }
+
+    if (config.maxWorkers == -1)
+        concurrentThreadsSupported_ = std::thread::hardware_concurrency() + 1;  // we assume at least 1 thread will be blocked by io write
+    else
+        concurrentThreadsSupported_ = config.maxWorkers;
 
     // 1 thread to start with, super large textures can exhaust memory immediately with multiple jobs
-    workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_));
+    for (int i=0; i<config.initialWorkers; ++i)
+        workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_,
+                           "worker"s+std::to_string(workers_.size())));
+
+    FDN_INFO("worker threads");
+    FDN_INFO("  initial: ", workers_.size());
+    FDN_INFO("  maximum: ", concurrentThreadsSupported_);
 }
 
 Exporter::~Exporter()
@@ -227,6 +309,8 @@ void Exporter::close()
 {
     if (!closed_)
     {
+        FDN_INFO("closing export session - final worker pool size ", workers_.size());
+
         // we don't want to retry closing on destruction if we throw an exception
         closed_ = true;
 
@@ -268,6 +352,7 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
         ++(*currentFrame_);
     }
 
+    auto startWait = std::chrono::high_resolution_clock::now();
     // throttle the caller - if the queue is getting too long we should wait
     while ((jobEncoder_.nEncodeJobs() >= std::max(size_t{ 1 }, workers_.size() - 1))  // first worker either encodes or writes
         && !expandWorkerPoolToCapacity()  // if we can, expand the pool
@@ -276,6 +361,8 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
         // otherwise wait for an opening
         std::this_thread::sleep_for(2ms);
     }
+    auto endWait = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> durationWaitInMs = endWait - startWait;
 
     // worker threads can die while encoding or writing (eg full disk)
     // this is the most likely spot where the error can be noted by the main thread
@@ -284,6 +371,8 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
         throw std::runtime_error("error while exporting");
 
     ExportJob job = videoJobFreeList_.allocate();
+    job->name = "video@"s + std::to_string(iFrame);
+    FDN_DEBUG(job->name, " throttling took ", durationWaitInMs.count(), "ms");
     job->iFrameOrPts = iFrame;
     job->willEncode = std::promise<ExportJob>();
 
@@ -295,7 +384,12 @@ void Exporter::dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride,
     //
     // TODO: may be able to use Adobe's addRef at a higher level and pipe it through for a minor
     //       performance gain
+
+    auto start = std::chrono::high_resolution_clock::now();
     static_cast<VideoExportJob&>(*job).codecJob->copyExternalToLocal(data, stride, format);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> durationInMs = endWait - startWait;
+    FDN_DEBUG(job->name, " queuing took ", durationInMs.count(), "ms");
 
     jobEncoder_.push(std::move(job));
 }
@@ -318,6 +412,7 @@ void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) cons
         throw std::runtime_error("error while exporting");
 
     ExportJob job = audioJobFreeList_.allocate();
+    job->name = "audio@"s + std::to_string(pts);
     job->iFrameOrPts = pts;
     job->willEncode = std::promise<ExportJob>();
 
@@ -341,7 +436,9 @@ bool Exporter::expandWorkerPoolToCapacity() const
     bool isNotBufferLimited = true;  // TODO: get memoryUsed < maxMemoryCapacity from Adobe API
 
     if (isNotThreadLimited && isNotOutputLimited && isNotBufferLimited) {
-        workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_));
+        workers_.push_back(std::make_unique<ExporterWorker>(error_, jobEncoder_, jobWriter_,
+                                                            "worker"s+std::to_string(workers_.size())));
+        FDN_INFO("expanded worker pool to ", workers_.size());
         return true;
     }
     return false;
