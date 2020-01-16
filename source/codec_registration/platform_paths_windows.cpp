@@ -4,7 +4,7 @@
 
 namespace fdn {
 
-const PathType getConfigurationPath()
+PathType getConfigurationPath()
 {
     PathType path;
     PWSTR programs;
