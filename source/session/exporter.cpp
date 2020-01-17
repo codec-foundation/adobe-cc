@@ -26,8 +26,8 @@ void from_json(const json& j, ExporterConfiguration& c) {
     j.at("maxWorkers").get_to(c.maxWorkers);
 }
 
-ExporterJobEncoder::ExporterJobEncoder()
-    : nEncodeJobs_(0)
+ExporterJobEncoder::ExporterJobEncoder(std::atomic<bool>& error)
+    : nEncodeJobs_(0), error_(error)
 {
 }
 
@@ -64,6 +64,20 @@ ExportJob ExporterJobEncoder::encode()
     }
 
     return job;
+}
+
+void ExporterJobEncoder::flush()
+{
+    while (!error_)
+    {
+        {
+            std::lock_guard guard(mutex_);
+            if (queue_.empty()) {
+                break;
+            }
+        }
+        std::this_thread::sleep_for(2ms);
+    }
 }
 
 ExporterJobWriter::ExporterJobWriter(std::unique_ptr<MovieWriter> writer)
@@ -268,6 +282,7 @@ Exporter::Exporter(
     audioJobFreeList_(std::function<std::unique_ptr<AudioExportJob>()>([&]() {
                         return std::make_unique<AudioExportJob>();
                       })),
+    jobEncoder_(error_),
     jobWriter_(std::move(movieWriter))
 {
 
@@ -316,8 +331,10 @@ void Exporter::close()
         // we don't want to retry closing on destruction if we throw an exception
         closed_ = true;
 
-        // wait for last jobs to complete. The last one does the last write. If something
-        // fails it will abort the others.
+        // wait for the job queue to empty
+        jobEncoder_.flush();
+
+        // wait for the workers to complete
         {
             ExportWorkers empty;  // this must be destructed before writer_.close()
             std::swap(workers_, empty);

@@ -65,10 +65,12 @@ typedef std::list<std::unique_ptr<ExporterWorker> > ExportWorkers;
 class ExporterJobEncoder
 {
 public:
-    ExporterJobEncoder();
+    ExporterJobEncoder(std::atomic<bool> &error);
 
     void push(ExportJob job);
     ExportJob encode();
+
+    void flush(); // wait for queue to empty
 
     uint64_t nEncodeJobs() const { return nEncodeJobs_;  }
 
@@ -77,6 +79,8 @@ private:
     ExportJobQueue queue_;
 
     std::atomic<uint64_t> nEncodeJobs_;
+
+    std::atomic<bool> &error_;  // watch when flushing queue
 };
 
 // thread-safe writer of ExportJob
