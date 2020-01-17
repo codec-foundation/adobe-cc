@@ -43,7 +43,7 @@ Rational SimplifyAndSnapToMpegFrameRate(Rational rational)
         Rational{   25,    1},
         Rational{30000, 1001},
         Rational{   30,    1},
-        Rational{480000, 1001},   // unofficial, but may be found in the wild
+        Rational{48000, 1001},   // unofficial, but may be found in the wild
         Rational{   50,    1},
         Rational{60000, 1001},
         Rational{   60,    1},
