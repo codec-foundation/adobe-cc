@@ -272,39 +272,6 @@ void from_json(const json& j, LogConfiguration& lc) {
     }
 }
 
-Logger& Logger::theLogger()
-{
-    static LogConfiguration configuration = [&](...) {
-        try {
-            return fdn::config().at("logging").get<LogConfiguration>();
-        }
-        catch (...)
-        {
-        }
-        return LogConfiguration();
-    }();
-    static Logger logger(configuration.threshold, configuration.path, configuration.style);
-    return logger;
-}
-
-// external entrypoint
-void logMessage(const CodeLocation& location, LogMessageSeverity severity, const std::string& msg)
-{
-    Logger::theLogger().pushMessage(
-        fdn::Logger::LogMessage{
-            &location,
-            severity,
-            msg,
-            std::this_thread::get_id()
-        }
-    );
-}
-
-void nameThread(const std::string& name)
-{
-    fdn::Logger::theLogger().nameThread(name);
-}
-
 #ifdef WIN32
 class FDNStackWalker : public StackWalker
 {
@@ -333,6 +300,67 @@ extern "C" {
 
 #endif
 
+class StdTerminateCrashHandlerInstaller
+{
+public:
+    StdTerminateCrashHandlerInstaller()
+    {
+        s_previousHandler_ = std::get_terminate();
 
+        std::set_terminate([]() {
+            FDN_FATAL("std::terminate called"); // !!! should try to set up internals prior to crash so no alloc
+            FDNStackWalker stackwalker;
+            stackwalker.ShowCallstack();
+            s_previousHandler_();
+        });
+    }
+
+    static StdTerminateCrashHandlerInstaller& theStdCrashHandlerInstaller();
+
+private:
+    static std::terminate_handler StdTerminateCrashHandlerInstaller::s_previousHandler_;
+};
+std::terminate_handler StdTerminateCrashHandlerInstaller::s_previousHandler_;
+
+StdTerminateCrashHandlerInstaller& StdTerminateCrashHandlerInstaller::theStdCrashHandlerInstaller()
+{
+    static StdTerminateCrashHandlerInstaller theStdCrashHandlerInstaller;
+    return theStdCrashHandlerInstaller;
+}
+
+Logger& Logger::theLogger()
+{
+    static LogConfiguration configuration = [&](...) {
+        try {
+            return fdn::config().at("logging").get<LogConfiguration>();
+        }
+        catch (...)
+        {
+        }
+        return LogConfiguration();
+    }();
+    static Logger logger(configuration.threshold, configuration.path, configuration.style);
+    StdTerminateCrashHandlerInstaller::theStdCrashHandlerInstaller(); // !!! would be better to have this called at initial API hooks
+    return logger;
+}
+
+// external entrypoint
+void logMessage(const CodeLocation& location, LogMessageSeverity severity, const std::string& msg)
+{
+    Logger::theLogger().pushMessage(
+        fdn::Logger::LogMessage{
+            &location,
+            severity,
+            msg,
+            std::this_thread::get_id()
+        }
+    );
+}
+
+void nameThread(const std::string& name)
+{
+    fdn::Logger::theLogger().nameThread(name);
+}
 
 }  // namespace fdn
+
