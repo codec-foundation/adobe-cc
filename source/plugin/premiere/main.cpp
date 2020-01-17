@@ -148,7 +148,7 @@ DllExport PREMPLUGENTRY xSDKExport(csSDK_int32 selector, exportStdParms* stdParm
     }
     __except (ExpFilter(GetExceptionInformation(), GetExceptionCode()))
     {
-        return exportReturn_ErrOther;
+        return malUnknownError;
     }
 #endif
     return result;
@@ -413,7 +413,7 @@ prMALError fileExtension(exportStdParms* stdParmsP, exQueryExportFileExtensionRe
 	return malNoError;
 }
 
-static prMALError c_onFrameComplete(
+static prMALError wrapped_c_onFrameComplete(
     csSDK_uint32 inWhichPass,
     csSDK_uint32 inFrameNumber,
     csSDK_uint32 inFrameRepeatCount,
@@ -421,6 +421,7 @@ static prMALError c_onFrameComplete(
     void* inCallbackData)
 {
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(inCallbackData);
+
     try
     {
         char* bgra_buffer;
@@ -433,20 +434,45 @@ static prMALError c_onFrameComplete(
         if (malNoError != error)
             throw std::runtime_error("could not GetRowBytes on completed frame");
 
-        for (auto iFrame=inFrameNumber; iFrame<inFrameNumber + inFrameRepeatCount; ++iFrame)
+        for (auto iFrame = inFrameNumber; iFrame < inFrameNumber + inFrameRepeatCount; ++iFrame)
             settings->exporter->dispatchVideo(iFrame, (uint8_t*)bgra_buffer, bgra_stride, 0);  //!!! could support multiple formats here
     }
     catch (const std::exception& ex)
     {
+        FDN_ERROR("error exporting frame #", inFrameNumber, " - ", ex.what());
         settings->reportError(ex.what());
         return malUnknownError;
     }
     catch (...)
     {
+        FDN_ERROR("unknown exception thrown while exporting frame #", inFrameNumber);
         settings->reportError("unspecified error while processing frame");
         return malUnknownError;
     }
+
     return malNoError;
+}
+
+static prMALError c_onFrameComplete(
+    csSDK_uint32 inWhichPass,
+    csSDK_uint32 inFrameNumber,
+    csSDK_uint32 inFrameRepeatCount,
+    PPixHand inRenderedFrame,
+    void* inCallbackData)
+{
+#ifdef WIN32
+    __try
+    {
+#endif
+        return wrapped_c_onFrameComplete(inWhichPass, inFrameNumber, inFrameRepeatCount, inRenderedFrame, inCallbackData);
+
+#ifdef WIN32
+    }
+    __except (ExpFilter(GetExceptionInformation(), GetExceptionCode()))
+    {
+        return malUnknownError;
+    }
+#endif
 }
 
 static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_int32 fileObject,
