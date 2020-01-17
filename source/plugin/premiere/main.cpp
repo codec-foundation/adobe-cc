@@ -419,7 +419,7 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
 
 static std::unique_ptr<Exporter> createExporter(
     const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
-    int64_t frameRateNumerator, int64_t frameRateDenominator,
+    Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
     bool withAudio, int sampleRate, int32_t numAudioChannels,
@@ -442,7 +442,7 @@ static std::unique_ptr<Exporter> createExporter(
         videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
-        frameRateNumerator, frameRateDenominator,
+        frameRate,
         maxFrames, reserveMetadataSpace,
         file,
         errorCallback,
@@ -500,16 +500,16 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     exParamValues ticksPerFrame, width, height, includeAlphaChannel, subTypeParam, quality, chunkCountParam;
     Codec4CC videoFormat{ 0 };
     bool hasChunkCount{ false };
-	PrTime ticksPerSecond;
+    PrTime ticksPerSecond;
 
     const auto& codec = *CodecRegistry::codec();
     bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
 
     settings->logMessage("codec implementation: " + CodecRegistry::logName());
 
-	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoFPS, &ticksPerFrame);
-	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoWidth, &width);
-	settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoHeight, &height);
+    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoFPS, &ticksPerFrame);
+    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoWidth, &width);
+    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoHeight, &height);
     if (codec.details().hasSubTypes())
     {
         settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoCodec, &subTypeParam);
@@ -538,10 +538,9 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
     settings->timeSuite->GetTicksPerSecond(&ticksPerSecond);
 
-    const int64_t frameRateNumerator = ticksPerSecond;
-    const int64_t frameRateDenominator = ticksPerFrame.value.timeValue;
+    Rational frameRate{ticksPerSecond, ticksPerFrame.value.timeValue};
 
-    int32_t maxFrames = int32_t(double((exportInfoP->endTime - exportInfoP->startTime)) / frameRateDenominator);
+    int32_t maxFrames = int32_t(double((exportInfoP->endTime - exportInfoP->startTime)) / ticksPerFrame.value.timeValue);
     
     //!!!
     int clampedQuality = std::clamp(quality.value.intValue, 1, 5);
@@ -573,7 +572,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
         settings->exporter = createExporter(
             frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
-            frameRateNumerator, frameRateDenominator,
+            frameRate,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
             movieFile, errorCallback,
@@ -609,7 +608,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
             settings->exporter = createExporter(
                 frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
-                frameRateNumerator, frameRateDenominator,
+                frameRate,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,
                 movieFile, errorCallback,

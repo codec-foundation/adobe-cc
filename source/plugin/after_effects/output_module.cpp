@@ -160,7 +160,7 @@ static MovieFile createMovieFile(const std::string &filename,
 
 static std::unique_ptr<Exporter> createExporter(
     const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
-    int64_t frameRateNumerator, int64_t frameRateDenominator,
+    Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
     bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
@@ -181,7 +181,7 @@ static std::unique_ptr<Exporter> createExporter(
         videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
         frameDef.width, frameDef.height,
         encoder->encodedBitDepth(),
-        frameRateNumerator, frameRateDenominator,
+        frameRate,
         maxFrames, reserveMetadataSpace,
         file,
         errorCallback,
@@ -600,8 +600,10 @@ AEIO_StartAdding(
                 throw std::runtime_error("unsupported depth");
             }
             int clampedQuality = std::clamp(optionsUP->quality, 1, 5);  //!!! 4 is optimal; replace with enum
-            int64_t frameRateNumerator = fps;
-            int64_t frameRateDenominator = A_Fixed_ONE;
+
+
+            Rational frameRate = SimplifyAndSnapToMpegFrameRate(Rational{fps, A_Fixed_ONE });
+            
             int32_t maxFrames = (int32_t)((int64_t)duration.value * fps / A_Fixed_ONE / duration.scale);
             int reserveMetadataSpace = 0;
             auto movieErrorCallback = [](...) {};
@@ -628,8 +630,7 @@ AEIO_StartAdding(
                 codec4CC,
                 hasChunkCounts, chunkCounts,
                 clampedQuality,
-                frameRateNumerator,
-                frameRateDenominator,
+                frameRate,
                 maxFrames,
                 reserveMetadataSpace,
                 movieFile,

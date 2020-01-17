@@ -23,6 +23,15 @@ public:
     }
 };
 
+// Framerate timebases
+struct Rational
+{
+    int64_t numerator;
+    int64_t denominator;
+};
+
+Rational SimplifyAndSnapToMpegFrameRate(Rational rational);
+
 // ffmpeg libavformat-based file writing
 class MovieWriter
 {
@@ -30,7 +39,7 @@ public:
     MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
                 int width, int height,
                 int encodedBitDepth,  // rgb=24, rgba=32 etc. Needs to be set correctly for some playback importers (eg After Effects) 
-                int64_t frameRateNumerator, int64_t frameRateDenominator,
+                Rational frameRate,
                 int32_t maxFrames, int32_t reserveMetadataSpace,
                 MovieFile file, MovieErrorCallback onError,
                 bool writeMoovTagEarly
