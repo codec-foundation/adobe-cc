@@ -7,6 +7,9 @@ else ()
 endif ()
 
 # plugins
+
+add_definitions(-DCODEC_NAME="${Foundation_CODEC_NAME}")
+
 add_subdirectory(adobe_shared)
 add_subdirectory(after_effects)
 add_subdirectory(premiere)
