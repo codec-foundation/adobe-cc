@@ -5,12 +5,12 @@
 // for convenience
 using json = nlohmann::json;
 
-#include "exporter.hpp"
-#include "string_conversion.hpp"
 #include "codec_registration.hpp"
+#include "exporter.hpp"
 #include "logging.hpp"
 
 #include "output_module.h"
+#include "string_conversion.hpp"
 #include "ui.h"
 
 #define API_ERRORHANDLER_BEGIN(tmpApiName) const char *apiName = tmpApiName; FDN_DEBUG(apiName); try {
@@ -666,7 +666,11 @@ AEIO_StartAdding(
 
 
             Rational frameRate = SimplifyAndSnapToMpegFrameRate(Rational{fps, A_Fixed_ONE });
-            
+            if (frameRate.numerator != fps || frameRate.denominator != A_Fixed_ONE) {
+                FDN_INFO("snapped frame rate from ", fps, "/", A_Fixed_ONE,
+                         " to ", frameRate.numerator, "/", frameRate.denominator);
+            }
+
             int32_t maxFrames = (int32_t)((int64_t)duration.value * fps / A_Fixed_ONE / duration.scale);
             int reserveMetadataSpace = 0;
             auto movieErrorCallback = [](...) {};
