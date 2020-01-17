@@ -44,6 +44,7 @@ if (MSVC)
             OUTPUT_NAME "${Foundation_CODEC_NAME}Plugin"
             SUFFIX ".prm"
     )
+    install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> DESTINATION bin OPTIONAL)
 elseif (APPLE)
 # macOS plugins have a common extension, so identify the host in the name
     set_target_properties(PremierePlugin
@@ -90,13 +91,6 @@ if (APPLE)
                     PROPERTY COMPILE_DEFINITIONS FOUNDATION_MACOSX_BUNDLE_GUI_IDENTIFIER=@\"${Foundation_IDENTIFIER_PREFIX}.pr\"
     )
 endif (APPLE)
-if (MSVC)
-    # used so we can look up install location from code
-    set_property(SOURCE presets.cpp
-                    APPEND
-                    PROPERTY COMPILE_DEFINITIONS FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"
-    )
-endif (MSVC)
 install(
   TARGETS PremierePlugin
   RUNTIME

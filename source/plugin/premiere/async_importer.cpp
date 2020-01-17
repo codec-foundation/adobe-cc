@@ -1,16 +1,22 @@
 #include "async_importer.hpp"
+#include "logging.hpp"
 
 PREMPLUGENTRY xAsyncImportEntry(
     int		inSelector,
     void	*inParam)
 {
+    FDN_DEBUG("xAsyncImportEntry selector=", inSelector);
+
     csSDK_int32			result = aiUnsupported;
+
+    try {
     AsyncImporter	   *asyncImporter = 0;
 
     switch (inSelector)
     {
     case aiInitiateAsyncRead:
     {
+        FDN_DEBUG("aiInitiateAsyncRead");
         aiAsyncRequest* asyncRequest(reinterpret_cast<aiAsyncRequest*>(inParam));
         asyncImporter = reinterpret_cast<AsyncImporter*>(asyncRequest->inPrivateData);
         result = asyncImporter->OnInitiateAsyncRead(asyncRequest->inSourceRec);
@@ -18,17 +24,20 @@ PREMPLUGENTRY xAsyncImportEntry(
     }
     case aiCancelAsyncRead:
     {
+        FDN_DEBUG("aiCancelAsyncRead");
         return aiUnsupported;
         break;
     }
     case aiFlush:
     {
+        FDN_DEBUG("aiFlush");
         asyncImporter = reinterpret_cast<AsyncImporter*>(inParam);
         result = asyncImporter->OnFlush();
         break;
     }
     case aiGetFrame:
     {
+        FDN_DEBUG("aiGetFrame");
         imSourceVideoRec* getFrameRec(reinterpret_cast<imSourceVideoRec*>(inParam));
         asyncImporter = reinterpret_cast<AsyncImporter*>(getFrameRec->inPrivateData);
         result = asyncImporter->OnGetFrame(getFrameRec);
@@ -36,11 +45,23 @@ PREMPLUGENTRY xAsyncImportEntry(
     }
     case aiClose:
     {
+        FDN_DEBUG("aiClose");
         asyncImporter = reinterpret_cast<AsyncImporter*>(inParam);
         delete asyncImporter;
         result = aiNoError;
         break;
     }
+    }
+    }
+    catch (const std::exception& ex)
+    {
+        FDN_ERROR("async import exception: ", ex.what());
+        result = aiUnknownError;
+    }
+    catch (...)
+    {
+        FDN_ERROR("async import unknown exception");
+        result = aiUnknownError;
     }
 
     return result;

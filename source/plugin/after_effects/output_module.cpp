@@ -8,9 +8,24 @@ using json = nlohmann::json;
 #include "exporter.hpp"
 #include "string_conversion.hpp"
 #include "codec_registration.hpp"
+#include "logging.hpp"
 
 #include "output_module.h"
 #include "ui.h"
+
+#define API_ERRORHANDLER_BEGIN(tmpApiName) const char *apiName = tmpApiName; FDN_DEBUG(apiName); try {
+#define API_ERRORHANDLER_END()                                       \
+    }                                                                \
+    catch (const std::exception& ex)                                 \
+    {                                                                \
+        FDN_ERROR("exception in ", apiName, ": ", ex.what());        \
+        err = A_Err_GENERIC;                                         \
+    }                                                                \
+    catch (...)                                                      \
+    {                                                                \
+        FDN_ERROR("unknown exception in ", apiName);                 \
+        err = A_Err_GENERIC;                                         \
+    }
 
 static AEGP_PluginID S_mem_id = 0;
 
@@ -18,9 +33,16 @@ static A_Err DeathHook(
     AEGP_GlobalRefcon unused1 ,
     AEGP_DeathRefcon unused2)
 {
+    FDN_INFO("AEX output plugin exit");
+
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("DeathHook");
+
     CodecRegistry::codec().reset();
 
-    return A_Err_NONE;
+    API_ERRORHANDLER_END();
+
+    return err;
 }
 
 struct OutputOptions
@@ -121,6 +143,8 @@ static MovieFile createMovieFile(const std::string &filename,
     MovieFile fileWrapper;
     auto file=std::make_shared<FILE *>((FILE *)nullptr);
     fileWrapper.onOpenForWrite = [=]() {
+        FDN_INFO("opening ", filename, " for writing");
+
 #ifdef _WIN64
         fopen_s(file.get(), filename.c_str(), "wb");
 #else
@@ -205,6 +229,9 @@ AEIO_InitOutputSpec(
     A_Boolean      *user_interacted)
 {
     A_Err       err = A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_InitOutputSpec");
+
     AEIO_Handle new_optionsH = NULL,
                 old_optionsH = 0;
     OutputOptions  *new_optionsP;
@@ -259,6 +286,9 @@ AEIO_InitOutputSpec(
     if (old_optionsH) {
         ERR(suites.MemorySuite1()->AEGP_FreeMemHandle(old_optionsH));
     }
+
+    API_ERRORHANDLER_END();
+
     return err;
 }
 
@@ -270,6 +300,9 @@ AEIO_GetFlatOutputOptions(
     AEIO_Handle        *new_optionsPH)
 {
     A_Err                        err                = A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_GetFlatOutputOptions");
+
     OutputOptions *new_optionsP;
     AEGP_SuiteHandler            suites(basic_dataP->pica_basicP);
 
@@ -298,6 +331,8 @@ AEIO_GetFlatOutputOptions(
         }
     }
 
+    API_ERRORHANDLER_END();
+
     return err;
 }
 
@@ -311,13 +346,18 @@ AEIO_DisposeOutputOptions(
     AEIO_Handle			optionsH	=	reinterpret_cast<AEIO_Handle>(optionsPV);
     OutputOptions      *optionsP    =   nullptr;
     A_Err				err			=	A_Err_NONE;
-    
+   
+    API_ERRORHANDLER_BEGIN("AEIO_DisposeOutputOptions");
+
     if (optionsH){
         ERR(suites.MemorySuite1()->AEGP_LockMemHandle(optionsH, reinterpret_cast<void**>(&optionsP)));
         optionsP->~OutputOptions();
         ERR(suites.MemorySuite1()->AEGP_UnlockMemHandle(optionsH));
         ERR(suites.MemorySuite1()->AEGP_FreeMemHandle(optionsH));
     }
+
+    API_ERRORHANDLER_END();
+
     return err;
 };
 
@@ -329,6 +369,9 @@ AEIO_UserOptionsDialog(
     A_Boolean				*user_interacted0)
 { 
     A_Err						err				= A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_UserOptionsDialog");
+
     AEGP_SuiteHandler			suites(basic_dataP->pica_basicP);
     {
         OutputOptionsUP optionsUP = OutputOptionsHandleWrapper::wrap(suites, outH);
@@ -356,6 +399,8 @@ AEIO_UserOptionsDialog(
         //}
     }
 
+    API_ERRORHANDLER_END();
+
     return err;
 };
 
@@ -365,7 +410,10 @@ AEIO_GetOutputInfo(
     AEIO_OutSpecH		outH,
     AEIO_Verbiage		*verbiageP)
 { 
-    A_Err err			= A_Err_NONE;
+    A_Err err = A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_GetOutputInfo");
+
     AEGP_SuiteHandler	suites(basic_dataP->pica_basicP);
     OutputOptionsUP optionsUP = OutputOptionsHandleWrapper::wrap(suites, outH);
 
@@ -399,6 +447,9 @@ AEIO_GetOutputInfo(
 
     suites.ANSICallbacksSuite1()->strcpy(verbiageP->sub_type,
                                           description.c_str());
+
+    API_ERRORHANDLER_END();
+
     return err;
 };
 
@@ -416,7 +467,9 @@ AEIO_OutputInfoChanged(
     */
     
     A_Err err					=	A_Err_NONE;
-    
+
+    API_ERRORHANDLER_BEGIN("AEIO_OutputInfoChanged");
+
     AEIO_AlphaLabel	alpha;
     AEFX_CLR_STRUCT(alpha);
     
@@ -446,6 +499,9 @@ AEIO_OutputInfoChanged(
         ERR(suites.IOOutSuite4()->AEGP_GetOutSpecFPS(outH, &native_fps));
         ERR(suites.IOOutSuite4()->AEGP_GetOutSpecHSF(outH, &hsf));
     }
+
+    API_ERRORHANDLER_END();
+
     return err;
 }
 
@@ -455,6 +511,10 @@ AEIO_SetOutputFile(
     AEIO_OutSpecH		outH, 
     const A_UTF16Char	*file_pathZ)
 { 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("AEIO_SetOutputFile");
+    API_ERRORHANDLER_END();
+
     return AEIO_Err_USE_DFLT_CALLBACK;
 }
 
@@ -465,6 +525,9 @@ AEIO_StartAdding(
     A_long				flags)
 { 
     A_Err				err			=	A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_StartAdding");
+
     A_Time				duration	=	{0,1};
     A_short				depth		=	0;
     A_Fixed				fps			=	0;
@@ -648,7 +711,10 @@ AEIO_StartAdding(
             return A_Err_PARAMETER;  //!!! AE generally hard crashes in event of errors
         }
     }
-    return err; 
+
+    API_ERRORHANDLER_END();
+
+    return err;
 };
 
 static A_Err	
@@ -663,6 +729,9 @@ AEIO_AddFrame(
     AEIO_InterruptFuncs		*inter0)
 { 
     A_Err		err			= A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_AddFrame");
+
     A_Boolean	deep_worldB	= PF_WORLD_IS_DEEP(wP);
                 #ifdef AE_OS_MAC
                 #pragma unused (deep_worldB)
@@ -719,6 +788,9 @@ AEIO_AddFrame(
             return A_Err_PARAMETER;  //!!! AE generally hard crashes in event of errors
         }
     }
+
+    API_ERRORHANDLER_END();
+
     return err; 
 };
                                 
@@ -728,6 +800,10 @@ AEIO_EndAdding(
     AEIO_OutSpecH			outH, 
     A_long					flags)
 { 
+    A_Err err = A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_EndAdding");
+
     AEGP_SuiteHandler	suites(basic_dataP->pica_basicP);
 
     OutputOptionsUP optionsUP = OutputOptionsHandleWrapper::wrap(suites, outH);
@@ -744,8 +820,9 @@ AEIO_EndAdding(
         return A_Err_PARAMETER;   //!!! AE generally hard crashes in event of errors
     }
     
+    API_ERRORHANDLER_END();
 
-    return A_Err_NONE;
+    return err;
 };
 
 static A_Err	
@@ -756,11 +833,16 @@ AEIO_OutputFrame(
 { 
     A_Err err	=	A_Err_NONE;
 
+    API_ERRORHANDLER_BEGIN("AEIO_OutputFrame");
+
     /*
         +	Re-interpret the supplied PF_World in your own
             format, and save it out to the outH's path.
 
     */
+
+    API_ERRORHANDLER_END();
+
     return err;
 };
 
@@ -770,6 +852,10 @@ AEIO_WriteLabels(
     AEIO_OutSpecH	outH, 
     AEIO_LabelFlags	*written)
 { 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("AEIO_WriteLabels");
+    API_ERRORHANDLER_END();
+
     return AEIO_Err_USE_DFLT_CALLBACK;
 };
 
@@ -780,6 +866,10 @@ AEIO_GetSizes(
     A_u_longlong	*free_space, 
     A_u_longlong	*file_size)
 { 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("DeathHook");
+    API_ERRORHANDLER_END();
+
     return AEIO_Err_USE_DFLT_CALLBACK;
 };
 
@@ -788,10 +878,14 @@ AEIO_Flush(
     AEIO_BasicData	*basic_dataP,
     AEIO_OutSpecH	outH)
 { 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("AEIO_Flush");
+    API_ERRORHANDLER_END();
+
     /*	free any temp buffers you kept around for
         writing.
     */
-    return A_Err_NONE; 
+    return err; 
 };
 
 static A_Err	
@@ -803,6 +897,9 @@ AEIO_AddSoundChunk(
     const void		*dataPV)
 {
     A_Err err		= A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_AddSoundChunk");
+
     AEGP_SuiteHandler	suites(basic_dataP->pica_basicP);
     OutputOptionsUP optionsUP = OutputOptionsHandleWrapper::wrap(suites, outH);
     if (!optionsUP)
@@ -825,6 +922,9 @@ AEIO_AddSoundChunk(
             num_channels * num_samplesLu * bytes_per_sample
         );
     }
+
+    API_ERRORHANDLER_END();
+
     return err; 
 };
 
@@ -833,8 +933,13 @@ AEIO_Idle(
     AEIO_BasicData			*basic_dataP,
     AEIO_ModuleSignature	sig,
     AEIO_IdleFlags			*idle_flags0)
-{ 
-    return A_Err_NONE; 
+{
+    A_Err err = A_Err_NONE;
+
+    API_ERRORHANDLER_BEGIN("AEIO_Idle");
+    API_ERRORHANDLER_END();
+
+    return err; 
 };	
 
 
@@ -844,6 +949,10 @@ AEIO_GetDepths(
     AEIO_OutSpecH			outH, 
     AEIO_SupportedDepthFlags		*which)
 { 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("AEIO_GetDepths");
+
+
     /*	Enumerate possible output depths by OR-ing 
         together different AEIO_SupportedDepthFlags.
     */
@@ -856,7 +965,9 @@ AEIO_GetDepths(
         AEIO_SupportedDepthFlags_DEPTH_96 |  // float without alpha (?)
         AEIO_SupportedDepthFlags_DEPTH_128;  // float with alpha (?)
 
-    return A_Err_NONE; 
+    API_ERRORHANDLER_END();
+
+    return err; 
 };
 
 static A_Err	
@@ -865,7 +976,12 @@ AEIO_GetOutputSuffix(
     AEIO_OutSpecH	outH, 
     A_char			*suffix)
 { 
-    return AEIO_Err_USE_DFLT_CALLBACK;
+    A_Err err = AEIO_Err_USE_DFLT_CALLBACK;
+    API_ERRORHANDLER_BEGIN("AEIO_GetOutputSuffix");
+
+    API_ERRORHANDLER_END();
+
+    return err;
 };
 
 
@@ -877,7 +993,11 @@ AEIO_SetUserData(
     A_u_long				indexLu,
     const AEIO_Handle		dataH)
 { 
-    return A_Err_NONE; 
+    A_Err err = A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("AEIO_SetUserData");
+    API_ERRORHANDLER_END();
+
+    return err;
 };
 
 static A_Err
@@ -886,7 +1006,6 @@ ConstructModuleInfo(
     AEIO_ModuleInfo		*info)
 {
     A_Err err = A_Err_NONE;
-
     AEGP_SuiteHandler	suites(pica_basicP);
 
     const auto& codec = *CodecRegistry::codec();
@@ -973,6 +1092,8 @@ EntryPointFunc(
     AEGP_GlobalRefcon		*global_refconP)		/* << */
 {
     A_Err 				err					= A_Err_NONE;
+    API_ERRORHANDLER_BEGIN("EntryPointFunc");
+
     AEIO_ModuleInfo		info;
     AEIO_FunctionBlock4	funcs;
     AEGP_SuiteHandler	suites(pica_basicP);	
@@ -992,5 +1113,8 @@ EntryPointFunc(
     ERR(suites.UtilitySuite3()->AEGP_RegisterWithAEGP(	NULL,
                                                        "NotchLC",
                                                        &S_mem_id));
+
+    API_ERRORHANDLER_END();
+
     return err;
 }

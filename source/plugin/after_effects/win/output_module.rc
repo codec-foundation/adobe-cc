@@ -83,7 +83,7 @@ BEGIN
         BEGIN
             VALUE "Comments", "\0"
             VALUE "CompanyName", "10BitFx\0"  // NOTCHLC SPECIFIC
-            VALUE "FileDescription", "AfterEffects output module to export " CODEC_NAME "\0"
+            VALUE "FileDescription", "AfterEffects output module to export " FOUNDATION_CODEC_NAME "\0"
             VALUE "FileVersion", "1, 0, 0, 1\0"
             VALUE "InternalName", AEX_INTERNAL_NAME
             VALUE "LegalCopyright", "Copyright � 2019\0"

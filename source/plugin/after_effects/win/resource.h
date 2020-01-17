@@ -26,9 +26,9 @@
 #define AEX_ORIGINAL_FILENAME "AEXPlugin.aex\0"
 #define AEX_PRODUCT_NAME "AEXPlugin\0"
 #else
-#define OPTIONS_CAPTION_NAME CODEC_NAME##" Options"
-#define AEX_FILE_DESCRIPTION "AfterEffects output module to export "##CODEC_NAME##"\0"
-#define AEX_INTERNAL_NAME CODEC_NAME##"AfterEffectsPlugin\0"
-#define AEX_ORIGINAL_FILENAME CODEC_NAME##"AEXPlugin.aex\0"
-#define AEX_PRODUCT_NAME CODEC_NAME##"\0"
+#define OPTIONS_CAPTION_NAME FOUNDATION_CODEC_NAME##" Options"
+#define AEX_FILE_DESCRIPTION "AfterEffects output module to export "##FOUNDATION_CODEC_NAME##"\0"
+#define AEX_INTERNAL_NAME FOUNDATION_CODEC_NAME##"AfterEffectsPlugin\0"
+#define AEX_ORIGINAL_FILENAME FOUNDATION_CODEC_NAME##"AEXPlugin.aex\0"
+#define AEX_PRODUCT_NAME FOUNDATION_CODEC_NAME##"\0"
 #endif
