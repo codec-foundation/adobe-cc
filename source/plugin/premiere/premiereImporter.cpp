@@ -189,8 +189,9 @@ ImporterInit(
     imStdParms        *stdParms, 
     imImportInfoRec    *importInfo)
 {
-    csSDK_int32 afterEffectsSig = reinterpret_cast<const csSDK_int32&>(CodecRegistry::codec()->details().afterEffectsSig);
-    importInfo->importerType = afterEffectsSig;
+    csSDK_int32 premiereSig = reinterpret_cast<const csSDK_int32&>(CodecRegistry::codec()->details().premiereSig);
+    importInfo->importerType = premiereSig;
+
     importInfo->setupOnDblClk = kPrFalse;
     importInfo->canSave = kPrFalse;
 
@@ -862,7 +863,9 @@ PREMPLUGENTRY DllExport xImportEntry (
 
         case imGetSubTypeNames:
             FDN_DEBUG("imGetSubTypeNames");
-            result = imUnsupported;
+            result = ImporterGetSubTypeNames(stdParms,
+                reinterpret_cast<csSDK_size_t>(param1),
+                reinterpret_cast<imSubTypeDescriptionRec**>(param2));
             break;
 
         case imSaveFile8:
