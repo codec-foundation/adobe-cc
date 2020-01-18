@@ -309,8 +309,10 @@ public:
 
         std::set_terminate([]() {
             FDN_FATAL("std::terminate called"); // !!! should try to set up internals prior to crash so no alloc
+#ifdef WIN32
             FDNStackWalker stackwalker;
             stackwalker.ShowCallstack();
+#endif
             s_previousHandler_();
         });
     }
@@ -318,7 +320,7 @@ public:
     static StdTerminateCrashHandlerInstaller& theStdCrashHandlerInstaller();
 
 private:
-    static std::terminate_handler StdTerminateCrashHandlerInstaller::s_previousHandler_;
+    static std::terminate_handler s_previousHandler_;
 };
 std::terminate_handler StdTerminateCrashHandlerInstaller::s_previousHandler_;
 
