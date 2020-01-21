@@ -11,3 +11,10 @@ add_subdirectory(session)
 
 # plugins
 add_subdirectory(plugin)
+
+# tests
+if(Foundation_PACKAGE_TESTS)
+    enable_testing()
+    include(GoogleTest)
+    add_subdirectory(test)
+endif()
