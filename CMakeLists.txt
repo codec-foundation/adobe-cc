@@ -19,6 +19,8 @@ endif()
 # library dependencies
 # !!! already included - add_subdirectory(external)
 
+option(Foundation_PACKAGE_TESTS "Build the tests" ON)
+
 # documentation
 # add_subdirectory(doc)
 
