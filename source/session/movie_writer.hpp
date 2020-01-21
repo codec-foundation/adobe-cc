@@ -34,6 +34,10 @@ struct Rational
     {
         return numerator == rhs.numerator && denominator == rhs.denominator;
     }
+    bool operator!=(const Rational& rhs) const
+    {
+        return numerator != rhs.numerator || denominator != rhs.denominator;
+    }
 };
 inline std::ostream& operator<<(std::ostream & lhs, const Rational& rhs) {
     lhs << "{" << rhs.numerator << "/" << rhs.denominator << "}";

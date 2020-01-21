@@ -650,7 +650,11 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
     settings->timeSuite->GetTicksPerSecond(&ticksPerSecond);
 
-    Rational frameRate{ticksPerSecond, ticksPerFrame.value.timeValue};
+    Rational unsnappedFrameRate{ticksPerSecond, ticksPerFrame.value.timeValue};
+    Rational frameRate = SimplifyAndSnapToMpegFrameRate(unsnappedFrameRate);
+    if (frameRate != unsnappedFrameRate) {
+        FDN_INFO("snapped frame rate from ", unsnappedFrameRate, " to ", frameRate);
+    }
 
     int32_t maxFrames = int32_t(double((exportInfoP->endTime - exportInfoP->startTime)) / ticksPerFrame.value.timeValue);
     

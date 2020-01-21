@@ -665,10 +665,10 @@ AEIO_StartAdding(
             int clampedQuality = std::clamp(optionsUP->quality, 1, 5);  //!!! 4 is optimal; replace with enum
 
 
-            Rational frameRate = SimplifyAndSnapToMpegFrameRate(Rational{fps, A_Fixed_ONE });
-            if (frameRate.numerator != fps || frameRate.denominator != A_Fixed_ONE) {
-                FDN_INFO("snapped frame rate from ", fps, "/", A_Fixed_ONE,
-                         " to ", frameRate.numerator, "/", frameRate.denominator);
+            Rational unsnappedFrameRate{fps, A_Fixed_ONE };
+            Rational frameRate = SimplifyAndSnapToMpegFrameRate(unsnappedFrameRate);
+            if (frameRate != unsnappedFrameRate) {
+                FDN_INFO("snapped frame rate from ", unsnappedFrameRate, " to ", frameRate);
             }
 
             int32_t maxFrames = (int32_t)((int64_t)duration.value * fps / A_Fixed_ONE / duration.scale);
