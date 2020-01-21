@@ -58,8 +58,9 @@ Rational SimplifyAndSnapToMpegFrameRate(Rational rational)
 
     auto nearest = std::find_if(mpegFrameRates.begin(), mpegFrameRates.end(),
         [&](const auto& candidate) { // rational / candidate will be near to 1.0 if it's a match 
-            return std::abs((double(rational.numerator * candidate.denominator)
-                / double(rational.denominator * candidate.numerator) - 1.0) <= tolerance);
+            return (std::abs((double(rational.numerator * candidate.denominator)
+                              / double(rational.denominator * candidate.numerator)) - 1.0)
+                    <= tolerance);
         }
     );
 
