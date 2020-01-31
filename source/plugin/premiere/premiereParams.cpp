@@ -539,5 +539,47 @@ prMALError validateParamChanged(exportStdParms *stdParmsP, exParamChangedRec *va
     if (settings->exportParamSuite == nullptr)
         return exportReturn_ErrMemory;
 
+    const csSDK_uint32 exID = validateParamChangedRecP->exporterPluginID;
+
+    const auto& codec = *CodecRegistry::codec();
+
+    if (codec.details().quality.hasQualityForAnySubType) {
+        settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoQuality, StringForPr(STR_QUALITY));
+        auto qualities = codec.details().quality.descriptions;
+        int worst = qualities.begin()->first;
+        int best = qualities.rbegin()->first;
+
+        exParamValues qualityValues;
+        settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoQuality, &qualityValues);
+        qualityValues.rangeMin.intValue = worst;
+        qualityValues.rangeMax.intValue = best;
+        qualityValues.disabled = kPrFalse;
+        qualityValues.hidden = kPrFalse;
+        settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoQuality, &qualityValues);
+
+        if (codec.details().subtypes.size()) {
+            exParamValues subCodecTypeParam;
+            settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoCodec, &subCodecTypeParam);
+            const auto codecSubType = reinterpret_cast<Codec4CC&>(subCodecTypeParam.value.intValue);
+
+            exParamValues qualityToValidate;
+            bool enableQuality = codec.details().hasQualityForSubType(codecSubType);
+            settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoQuality, &qualityToValidate);
+            qualityToValidate.disabled = !enableQuality;
+            settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoQuality, &qualityToValidate);
+        }
+    }
+
+    if (codec.details().hasChunkCount) {
+        settings->exportParamSuite->SetParamName(exID, 0, codec.details().premiereChunkCountName.c_str(), StringForPr(STR_CHUNKING));
+        exParamValues chunkCountValues;
+        settings->exportParamSuite->GetParamValue(exID, 0, codec.details().premiereChunkCountName.c_str(), &chunkCountValues);
+        chunkCountValues.rangeMin.intValue = k_chunkingMin;
+        chunkCountValues.rangeMax.intValue = k_chunkingMax;
+        chunkCountValues.disabled = kPrFalse;
+        chunkCountValues.hidden = kPrFalse;
+        settings->exportParamSuite->ChangeParam(exID, 0, codec.details().premiereChunkCountName.c_str(), &chunkCountValues);
+    }
+
     return malNoError;
 }
