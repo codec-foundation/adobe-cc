@@ -25,6 +25,16 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
         seqChannelType,
         seqSampleRate;
 
+
+    // !!! WORKAROUND - needed in CC 2020 at least
+    // !!! These parameters aren't used by any foundation-based codecs, but if they're not present the match-source button
+    // !!! causes presets to become unusable
+    PrParam pixelAspectRatioNumerator;
+    PrParam pixelAspectRatioDenominator;
+    PrParam fieldTypeP;
+    // !!! end workaround
+
+
     const auto& codec = *CodecRegistry::codec();
 
     if (exportInfoSuite)
@@ -33,6 +43,13 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
         exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_SourceHasAudio, &hasAudio);
         exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_VideoWidth, &seqWidth);
         exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_VideoHeight, &seqHeight);
+        // !!! WORKAROUND - needed in CC 2020 at least
+        // !!! These parameters aren't used by any foundation-based codecs, but if they're not present the match-source button
+        // !!! causes presets to become unusable
+        exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_PixelAspectNumerator, &pixelAspectRatioNumerator);
+        exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_PixelAspectDenominator, &pixelAspectRatioDenominator);
+        exportInfoSuite->GetExportSourceInfo(exporterPluginID, kExportInfo_VideoFieldType, &fieldTypeP);
+        // !!! end workaround
 
         if (seqWidth.mInt32 == 0)
             seqWidth.mInt32 = 1920;
@@ -114,7 +131,7 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
 
         exNewParamInfo frameRateParam;
         exParamValues frameRateValues;
-		SDKStringConvert::to_buffer(ADBEVideoFPS, frameRateParam.identifier);
+        SDKStringConvert::to_buffer(ADBEVideoFPS, frameRateParam.identifier);
         frameRateParam.paramType = exParamType_ticksFrameRate;
         frameRateParam.flags = exParamFlag_none;
         frameRateValues.rangeMin.timeValue = 1;
@@ -125,6 +142,51 @@ prMALError generateDefaultParams(exportStdParms *stdParms, exGenerateDefaultPara
         frameRateParam.paramValues = frameRateValues;
         exportParamSuite->AddParam(exporterPluginID, mgroupIndex, ADBEBasicVideoGroup, &frameRateParam);
 
+        // !!! WORKAROUND - needed in CC 2020 at least
+        // !!! These parameters aren't used by any foundation-based codecs, but if they're not present the match-source button
+        // !!! causes presets to become unusable
+        
+        // pixel aspect ratio
+        exParamValues parValues;
+        parValues.structVersion = 1;
+        parValues.rangeMin.ratioValue.numerator = 10;
+        parValues.rangeMin.ratioValue.denominator = 11;
+        parValues.rangeMax.ratioValue.numerator = 2;
+        parValues.rangeMax.ratioValue.denominator = 1;
+        parValues.value.ratioValue.numerator = pixelAspectRatioNumerator.mInt32;
+        parValues.value.ratioValue.denominator = pixelAspectRatioDenominator.mInt32;
+        parValues.disabled = kPrFalse;
+        parValues.hidden = kPrTrue;   // !!! because this is only present to avoid preset corruption
+
+        exNewParamInfo parParam;
+        parParam.structVersion = 1;
+        strncpy(parParam.identifier, ADBEVideoAspect, 255);
+        parParam.paramType = exParamType_ratio;
+        parParam.flags = exParamFlag_none;
+        parParam.paramValues = parValues;
+
+        settings->exportParamSuite->AddParam(exporterPluginID, mgroupIndex, ADBEBasicVideoGroup, &parParam);
+
+        // field order
+        if (fieldTypeP.mInt32 == prFieldsUnknown)
+            fieldTypeP.mInt32 = prFieldsNone;
+
+        exParamValues fieldOrderValues;
+        fieldOrderValues.structVersion = 1;
+        fieldOrderValues.value.intValue = fieldTypeP.mInt32;
+        fieldOrderValues.disabled = kPrFalse;
+        fieldOrderValues.hidden = kPrTrue;  // !!! because this only present to avoid preset corruption
+
+        exNewParamInfo fieldOrderParam;
+        fieldOrderParam.structVersion = 1;
+        strncpy(fieldOrderParam.identifier, ADBEVideoFieldType, 255);
+        fieldOrderParam.paramType = exParamType_int;
+        fieldOrderParam.flags = exParamFlag_none;
+        fieldOrderParam.paramValues = fieldOrderValues;
+
+        exportParamSuite->AddParam(exporterPluginID, mgroupIndex, ADBEBasicVideoGroup, &fieldOrderParam);
+
+        // !!! end workaround
         if (codec.details().hasChunkCount) {
             exNewParamInfo chunkCountParam;
             exParamValues chunkCountValues;
@@ -203,7 +265,6 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
 
     const auto& codec = *CodecRegistry::codec();
 
-    postProcessParamsRecP->doConformToMatchParams = true;
     exOneParamValueRec tempFrameRate;
     PrTime frameRates[] = { 10, 15, 23, 24, 25, 29, 30, 50, 59, 60 };
     PrTime frameRateNumDens[][2] = { { 10, 1 }, { 15, 1 }, { 24000, 1001 }, { 24, 1 }, { 25, 1 }, { 30000, 1001 }, { 30, 1 }, { 50, 1 }, { 60000, 1001 }, { 60, 1 } };
@@ -235,6 +296,77 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
 
     settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoHeight, StringForPr(STR_HEIGHT));
 
+    // width
+    exParamValues widthValues;
+    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoWidth, &widthValues);
+
+    widthValues.rangeMin.intValue = 16;
+    widthValues.rangeMax.intValue = 16384;
+
+    settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoWidth, &widthValues);
+
+
+    // height
+    exParamValues heightValues;
+    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoHeight, &heightValues);
+
+    heightValues.rangeMin.intValue = 16;
+    heightValues.rangeMax.intValue = 16384;
+
+    settings->exportParamSuite->ChangeParam(exID, 0, ADBEVideoHeight, &heightValues);
+
+
+    // !!! WORKAROUND - needed in CC 2020 at least
+    // !!! These parameters aren't used by any foundation-based codecs, but if they're not present the match-source button
+    // !!! causes presets to become unusable
+
+    // pixel aspect ratio
+    settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoAspect, StringForPr("Pixel Aspect Ratio"));
+
+    csSDK_int32	PARs[][2] = { {1, 1}, {10, 11}, {40, 33}, {768, 702},
+                            {1024, 702}, {2, 1}, {4, 3}, {3, 2} };
+
+    const char* PARStrings[] = { "Square pixels (1.0)",
+                                "D1/DV NTSC (0.9091)",
+                                "D1/DV NTSC Widescreen 16:9 (1.2121)",
+                                "D1/DV PAL (1.0940)",
+                                "D1/DV PAL Widescreen 16:9 (1.4587)",
+                                "Anamorphic 2:1 (2.0)",
+                                "HD Anamorphic 1080 (1.3333)",
+                                "DVCPRO HD (1.5)" };
+
+    settings->exportParamSuite->ClearConstrainedValues(exID, 0, ADBEVideoAspect);
+
+    exOneParamValueRec tempPAR;
+
+    for (csSDK_int32 i = 0; i < sizeof(PARs) / sizeof(PARs[0]); i++)
+    {
+        tempPAR.ratioValue.numerator = PARs[i][0];
+        tempPAR.ratioValue.denominator = PARs[i][1];
+        settings->exportParamSuite->AddConstrainedValuePair(exID, 0, ADBEVideoAspect, &tempPAR, StringForPr(PARStrings[i]));
+    }
+
+    // field type
+    settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoFieldType, StringForPr("Field Type"));
+
+    csSDK_int32	fieldOrders[] = { prFieldsUpperFirst,
+                                    prFieldsLowerFirst,
+                                    prFieldsNone };
+
+    const char* fieldOrderStrings[] = { "Upper First",
+                                        "Lower First",
+                                        "None" };
+
+    settings->exportParamSuite->ClearConstrainedValues(exID, 0, ADBEVideoFieldType);
+
+    exOneParamValueRec tempFieldOrder;
+    for (int i = 0; i < 3; i++)
+    {
+        tempFieldOrder.intValue = fieldOrders[i];
+        settings->exportParamSuite->AddConstrainedValuePair(exID, 0, ADBEVideoFieldType, &tempFieldOrder, StringForPr(fieldOrderStrings[i]));
+    }
+    // !!! END WORKAROUND
+
     if (codec.details().subtypes.size())
     {
         exOneParamValueRec tempHapSubcodec;
@@ -242,8 +374,7 @@ prMALError postProcessParams(exportStdParms *stdParmsP, exPostProcessParamsRec *
         settings->exportParamSuite->SetParamName(exID, 0, ADBEVideoCodec, StringForPr(L"Subcodec type"));
         settings->exportParamSuite->ClearConstrainedValues(exID, 0, ADBEVideoCodec);
         const auto& subtypes = codec.details().subtypes;
-        for (csSDK_int32 i = 0; i < subtypes.size(); i++)
-        {
+        for (csSDK_int32 i = 0; i < subtypes.size(); i++) {
             const auto& subtype = subtypes[i];
             tempHapSubcodec.intValue = reinterpret_cast<const int32_t&>(subtype.first[0]);
             settings->exportParamSuite->AddConstrainedValuePair(exID, 0, ADBEVideoCodec, &tempHapSubcodec, StringForPr(subtype.second));
@@ -344,7 +475,6 @@ prMALError getParamSummary(exportStdParms *stdParmsP, exParamSummaryRec *summary
     const csSDK_int32 exporterPluginID = summaryRecP->exporterPluginID;
 
     const auto& codec = *CodecRegistry::codec();
-
     if (!paramSuite)
         return malNoError;
 
@@ -360,10 +490,14 @@ prMALError getParamSummary(exportStdParms *stdParmsP, exParamSummaryRec *summary
     paramSuite->GetParamValue(exporterPluginID, mgroupIndex, ADBEAudioNumChannels, &channelType);
     timeSuite->GetTicksPerSecond(&ticksPerSecond);
 
+    //!!! this should be modified to read 'match source' if match source was selected
+    //!!! but it's not clear how to obtain that information here
     swprintf(videoSummary, 256, L"%ix%i, %s%.2f fps",
             width.value.intValue, height.value.intValue,
             (hasExplicitUseAlphaChannel?(includeAlphaChannel.value.intValue ? L"with alpha, " : L"no alpha, "):L""),
-            static_cast<float>(ticksPerSecond) / static_cast<float>(frameRate.value.timeValue));
+            static_cast<float>(ticksPerSecond)
+            / ((frameRate.value.timeValue != 0) ? static_cast<float>(frameRate.value.timeValue) : 1.0E50 // force result to zero if denom zero
+              ));
 	SDKStringConvert::to_buffer(videoSummary, summaryRecP->videoSummary);
 
     if (summaryRecP->exportAudio)
