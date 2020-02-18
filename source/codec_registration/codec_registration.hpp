@@ -89,9 +89,9 @@ typedef std::array<unsigned int, 2> HapChunkCounts;  //!!! move this
 
 struct EncoderParametersBase {
     EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, Codec4CC codec4CC_,
-                          bool hasChunkCount_, HapChunkCounts chunkCounts_, int quality_)
+                          HapChunkCounts chunkCounts_, int quality_)
         : frameDef(frameDef_), alpha(alpha_), codec4CC(codec4CC_),
-          hasChunkCount(hasChunkCount_), chunkCounts(chunkCounts_), quality(quality_) {}
+          chunkCounts(chunkCounts_), quality(quality_) {}
     virtual ~EncoderParametersBase() {}
 
     // ui-building
@@ -102,7 +102,6 @@ struct EncoderParametersBase {
     FrameDef frameDef;
     CodecAlpha alpha;
     Codec4CC codec4CC;
-    bool hasChunkCount;
     HapChunkCounts chunkCounts; //!!! move this
     int quality;
 
@@ -298,7 +297,6 @@ public:
     // opportunity to customise based on parameters
     std::function<UniqueEncoder (std::unique_ptr<EncoderParametersBase> parameters)> createEncoder;
     std::function<UniqueDecoder (std::unique_ptr<DecoderParametersBase> parameters)> createDecoder;
-
 
     // codec properties
     static const CodecDetails& details();

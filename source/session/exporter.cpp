@@ -86,6 +86,11 @@ ExporterJobWriter::ExporterJobWriter(std::unique_ptr<MovieWriter> writer)
 {
 }
 
+void ExporterJobWriter::writeAudioFrame(const uint8_t *data, size_t size, int64_t pts)
+{
+    writer_->writeAudioFrame(data, size, pts);
+}
+
 void ExporterJobWriter::enqueueWrite(std::future<ExportJob> encoded)
 {
     std::lock_guard<std::mutex> guard(writeQueueMutex_);
@@ -447,6 +452,11 @@ void Exporter::dispatchAudio(int64_t pts, const uint8_t* data, size_t size) cons
     jobEncoder_.push(std::move(job));
 }
 
+void Exporter::writeAudioFrame(const uint8_t *data, size_t size, int64_t pts)
+{
+    jobWriter_.writeAudioFrame(data, size, pts);
+}
+
 // returns true if pool was expanded
 bool Exporter::expandWorkerPoolToCapacity() const
 {
@@ -461,4 +471,44 @@ bool Exporter::expandWorkerPoolToCapacity() const
         return true;
     }
     return false;
+}
+
+std::unique_ptr<Exporter> createExporter(
+    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
+    Rational frameRate,
+    int32_t maxFrames, int32_t reserveMetadataSpace,
+    const MovieFile& file, MovieErrorCallback errorCallback,
+    bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
+    bool writeMoovTagEarly
+)
+{
+    std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
+        frameDef,
+        alpha,
+        videoFormat,
+        chunkCounts,
+        quality
+        );
+
+    UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
+
+    std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
+        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
+        frameDef.width, frameDef.height,
+        encoder->encodedBitDepth(),
+        frameRate,
+        maxFrames, reserveMetadataSpace,
+        file,
+        errorCallback,
+        writeMoovTagEarly   // writeMoovTagEarly
+        );
+
+    if (withAudio)
+    {
+        writer->addAudioStream(numAudioChannels, sampleRate, audioBytesPerSample, audioEncoding);
+    }
+
+    writer->writeHeader();
+
+    return std::make_unique<Exporter>(std::move(encoder), std::move(writer));
 }

@@ -15,6 +15,7 @@ target_sources(CodecFoundationSession
         sample_cache.hpp
     PRIVATE
         exporter.cpp
+        ffmpeg_helpers.cpp
         importer.cpp
         movie_reader.cpp
         movie_writer.cpp

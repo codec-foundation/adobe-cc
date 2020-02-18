@@ -4,6 +4,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <string>
 
 extern"C"
 {
@@ -29,6 +30,9 @@ struct MovieFile
     MovieSeekCallback onSeek;
     MovieCloseCallback onClose;
 };
+
+MovieFile createMovieFile(const std::string &filename,
+                          MovieErrorCallback errorCallback);
 
 // wrappers for libav-* objects
 

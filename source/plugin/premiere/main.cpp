@@ -18,7 +18,7 @@
 
 
 csSDK_int32 GetNumberOfAudioChannels(csSDK_int32 audioChannelType);
-static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, MovieWriter *writer);
+static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, Exporter& exporter);
 
 // For SEH and stack dump on win32 this is called from an SEH wrapper
 prMALError wrapped_xSDKExport(csSDK_int32 selector, exportStdParms* stdParmsP, void* param1, void* param2)
@@ -570,51 +570,6 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
     return fileWrapper;
 }
 
-static std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
-    Rational frameRate,
-    int32_t maxFrames, int32_t reserveMetadataSpace,
-    const MovieFile& file, MovieErrorCallback errorCallback,
-    bool withAudio, int sampleRate, int32_t numAudioChannels,
-    exDoExportRec* exportInfoP, prMALError& error,  //!!! not ideal passing these in
-    bool writeMoovTagEarly
-)
-{
-    std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
-        frameDef,
-        alpha,
-        videoFormat,
-        hasChunkCount,
-        chunkCounts,
-        quality
-        );
-
-    UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
-
-    std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
-        frameDef.width, frameDef.height,
-        encoder->encodedBitDepth(),
-        frameRate,
-        maxFrames, reserveMetadataSpace,
-        file,
-        errorCallback,
-        writeMoovTagEarly   // writeMoovTagEarly
-        );
-
-    if (withAudio)
-    {
-        writer->addAudioStream(numAudioChannels, sampleRate, 2, AudioEncoding_Signed_PCM);
-    }
-
-    writer->writeHeader();
-
-    if (withAudio)
-        renderAndWriteAllAudio(exportInfoP, error, writer.get());
-
-    return std::make_unique<Exporter>(std::move(encoder), std::move(writer));
-}
-
 void exportLoop(exDoExportRec* exportInfoP, prMALError& error)
 {
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(exportInfoP->privateData);
@@ -651,7 +606,6 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     const csSDK_uint32 exID = exportInfoP->exporterPluginID;
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(exportInfoP->privateData);
     exParamValues ticksPerFrame, width, height, chunkCountParam;
-    bool hasChunkCount{ false };
     PrTime ticksPerSecond;
 
     const auto& codec = *CodecRegistry::codec();
@@ -666,7 +620,6 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
     int chunkCount{ 0 };
     if (codec.details().hasChunkCount) {
-        hasChunkCount = true;
         settings->exportParamSuite->GetParamValue(exID, 0, codec.details().premiereChunkCountName.c_str(), &chunkCountParam);
         // currently 0 means auto, which until we have more information about the playback device will be 1 chunk
         chunkCount = (chunkCountParam.optionalParamEnabled == 1) ?
@@ -711,15 +664,17 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
         movieFile.onOpenForWrite();  //!!! move to writer
 
         settings->exporter = createExporter(
-            frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, quality,
+            frameDef, alpha, videoFormat, chunkCounts, quality,
             frameRate,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
             movieFile, errorCallback,
-            withAudio, audioSampleRate, numAudioChannels,
-            exportInfoP, error,
+            withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
             true  // writeMoovTagEarly
         );
+
+        if (withAudio)
+            renderAndWriteAllAudio(exportInfoP, error, *settings->exporter);
 
         exportLoop(exportInfoP, error);
 
@@ -749,15 +704,17 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             movieFile.onOpenForWrite();  //!!! move to writer
 
             settings->exporter = createExporter(
-                frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, quality,
+                frameDef, alpha, videoFormat, chunkCounts, quality,
                 frameRate,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,
                 movieFile, errorCallback,
-                withAudio, audioSampleRate, numAudioChannels,
-                exportInfoP, error,
+                withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
                 false   // writeMoovTagEarly
             );
+
+            if (withAudio)
+                renderAndWriteAllAudio(exportInfoP, error, *settings->exporter);
 
             exportLoop(exportInfoP, error);
 
@@ -791,7 +748,7 @@ csSDK_int32 GetNumberOfAudioChannels(csSDK_int32 audioChannelType)
     return numberOfChannels;
 }
 
-static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, MovieWriter *writer)
+static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error, Exporter& exporter)
 {
     // All audio calls to and from Premiere use arrays of buffers of 32-bit floats to pass audio.
     // Audio is not interleaved, rather separate channels are stored in separate buffers.
@@ -862,16 +819,16 @@ static void renderAndWriteAllAudio(exDoExportRec *exportInfoP, prMALError &error
                                                                  numAudioChannels, samplesRequested);
 
         // Write audioBufferOut as one packet
-        writer->writeAudioFrame(reinterpret_cast<const uint8_t *>(audioBufferOut),
-                                int64_t(samplesRequested) * int64_t(numAudioChannels) * int64_t(kAudioSampleSizeOutput),
-                                samplesExported);
+        exporter.writeAudioFrame(reinterpret_cast<const uint8_t *>(audioBufferOut),
+                                 int64_t(samplesRequested) * int64_t(numAudioChannels) * int64_t(kAudioSampleSizeOutput),
+                                 samplesExported);
 
         // Write audioBufferOut as separate samples
         // auto buf = reinterpret_cast<const uint8_t *>(audioBufferOut);
         // for (csSDK_int32 i = 0; i < samplesRequested; i++)
         // {
         //     csSDK_int32 offset = i * numAudioChannels * kAudioSampleSizeOutput;
-        //     writer->writeAudioFrame(&buf[offset],
+        //     exporter->writeAudioFrame(&buf[offset],
         //                             numAudioChannels * kAudioSampleSizeOutput,
         //                             samplesExported + i);
         // }

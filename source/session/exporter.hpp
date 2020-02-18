@@ -89,6 +89,11 @@ class ExporterJobWriter
 public:
     ExporterJobWriter(std::unique_ptr<MovieWriter> writer);
 
+    // !!! not thread-safe; must be called before jobs get dispatched
+    // !!! primarily for Premiere to preload audio
+    // !!! should be removed and enqueueWrite used instead
+    void writeAudioFrame(const uint8_t *data, size_t size, int64_t pts);
+
     // frames may arrive out of order due to encoding taking varied lengths of time
     // we don't know the index of the first frame until the first frame is dispatched
     // there can be jumps in sequence where there are no source frames (Premiere Pro can skip frames)
@@ -151,6 +156,11 @@ public:
     // throw, 'close' can and will
     void close();
     
+    // not thread safe, primarily for Premiere where the audio can be preloaded at beginning
+    // !!! must be called prior to dispatchVideo or dispatchAudio
+    // !!! unify with dispatchAudio
+    void writeAudioFrame(const uint8_t *data, size_t size, int64_t pts);
+
     // thread safe to be called 'on frame rendered'
     void dispatchVideo(int64_t iFrame, const uint8_t* data, size_t stride, FrameFormat format) const;
     
@@ -177,3 +187,12 @@ private:
     // must be last to ensure they're joined before their dependents are destructed
     mutable ExportWorkers workers_;
 };
+
+std::unique_ptr<Exporter> createExporter(
+    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
+    Rational frameRate,
+    int32_t maxFrames, int32_t reserveMetadataSpace,
+    const MovieFile& file, MovieErrorCallback errorCallback,
+    bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
+    bool writeMoovTagEarly
+);

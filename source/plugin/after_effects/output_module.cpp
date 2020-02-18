@@ -136,92 +136,6 @@ struct OutputOptionsHandleWrapper
     }
 };
 
-
-static MovieFile createMovieFile(const std::string &filename,
-                                 MovieErrorCallback errorCallback)
-{
-    MovieFile fileWrapper;
-    auto file=std::make_shared<FILE *>((FILE *)nullptr);
-    fileWrapper.onOpenForWrite = [=]() {
-        FDN_INFO("opening ", filename, " for writing");
-
-#ifdef _WIN64
-        fopen_s(file.get(), filename.c_str(), "wb");
-#else
-        FILE *ptr = fopen(filename.c_str(), "wb");
-        *file = ptr;
-#endif
-        if (!(*file))
-            throw std::runtime_error("couldn't open output file");
-    };
-    fileWrapper.onWrite = [=](const uint8_t* buffer, size_t size) {
-        auto nWritten = fwrite(buffer, size, 1, *file);
-        if (!nWritten) {
-            errorCallback("Could not write to file");
-            return -1;
-        }
-        return 0;
-    };
-    fileWrapper.onSeek = [=](int64_t offset, int whence) {
-#ifdef AE_OS_WIN
-        auto result = _fseeki64(*file, offset, whence);
-#else
-        auto result = fseek(*file, offset, whence);
-#endif
-        if (0 != result) {
-            errorCallback("Could not seek in file");
-            return -1;
-        }
-        return 0;
-    };
-    fileWrapper.onClose = [=]() {
-        return (fclose(*file)==0) ? 0 : -1;
-    };
-
-    return fileWrapper;
-}
-
-
-static std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, bool hasChunkCount, HapChunkCounts chunkCounts, int quality,
-    Rational frameRate,
-    int32_t maxFrames, int32_t reserveMetadataSpace,
-    const MovieFile& file, MovieErrorCallback errorCallback,
-    bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
-    bool writeMoovTagEarly
-)
-{
-    std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
-        frameDef,
-        alpha,
-        videoFormat,
-        hasChunkCount, chunkCounts,
-        quality
-        );
-
-    UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
-
-    std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
-        frameDef.width, frameDef.height,
-        encoder->encodedBitDepth(),
-        frameRate,
-        maxFrames, reserveMetadataSpace,
-        file,
-        errorCallback,
-        writeMoovTagEarly   // writeMoovTagEarly
-        );
-
-    if (withAudio)
-    {
-        writer->addAudioStream(numAudioChannels, sampleRate, audioBytesPerSample, audioEncoding);
-    }
-
-    writer->writeHeader();
-
-    return std::make_unique<Exporter>(std::move(encoder), std::move(writer));
-}
-
 static A_Err
 AEIO_InitOutputSpec(
     AEIO_BasicData *basic_dataP,
@@ -688,14 +602,13 @@ AEIO_StartAdding(
             Codec4CC codec4CC = codec.details().hasSubTypes() ? optionsUP->subType : codec.details().videoFormat;
 
             HapChunkCounts chunkCounts{ static_cast<unsigned int>(optionsUP->chunkCount), static_cast<unsigned int>(optionsUP->chunkCount)};
-            bool hasChunkCounts(codec.details().hasChunkCount);
 
             optionsUP->exporter = createExporter(
                 FrameDef(widthL, heightL,
                          format),
                 codecAlpha,
                 codec4CC,
-                hasChunkCounts, chunkCounts,
+                chunkCounts,
                 clampedQuality,
                 frameRate,
                 maxFrames,
