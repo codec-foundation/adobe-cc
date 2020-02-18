@@ -44,10 +44,10 @@ Rational SimplifyAndSnapToMpegFrameRate(Rational rational)
         Rational{30000, 1001},
         Rational{   30,    1},
         Rational{48000, 1001},   // unofficial, but may be found in the wild
+        Rational{   48,    1},
         Rational{   50,    1},
         Rational{60000, 1001},
         Rational{   60,    1},
-        Rational{   15,    1},
         Rational{    5,    1},
         Rational{   10,    1},
         Rational{   12,    1},
