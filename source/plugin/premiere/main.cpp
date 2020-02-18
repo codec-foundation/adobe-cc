@@ -665,8 +665,6 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     }
 
     try {
-        movieFile.onOpenForWrite();  //!!! move to writer
-
         settings->exporter = createExporter(
             frameSize, alpha, videoFormat, chunkCounts, quality,
             frameRate,
@@ -704,8 +702,6 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             catch (...)
             {
             }
-
-            movieFile.onOpenForWrite();  //!!! move to writer
 
             settings->exporter = createExporter(
                 frameSize, alpha, videoFormat, chunkCounts, quality,

@@ -85,6 +85,8 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
       onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose),
       writeMoovTagEarly_(writeMoovTagEarly)
 {
+    file.onOpenForWrite();
+
     /* allocate the output media context */
     AVFormatContext *formatContext = avformat_alloc_context();
     formatContext->oformat = &ff_mov_muxer;

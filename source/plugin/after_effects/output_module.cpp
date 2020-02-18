@@ -587,8 +587,6 @@ AEIO_StartAdding(
 
             auto movieFile = createMovieFile(filePath);
 
-            movieFile.onOpenForWrite();  //!!! move to writer
-
             const auto& codec = *CodecRegistry::codec();
             Codec4CC codec4CC = codec.details().hasSubTypes() ? optionsUP->subType : codec.details().videoFormat;
 
