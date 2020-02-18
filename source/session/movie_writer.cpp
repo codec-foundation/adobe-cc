@@ -20,6 +20,7 @@ extern "C" {
 #include <libavformat/internal.h>
 }
 
+#include "logging.hpp"
 #include "movie_writer.hpp"
 
 #undef av_err2str
@@ -78,10 +79,10 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     int width, int height, int encodedBitDepth,
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
-    MovieFile file, MovieErrorCallback onError,
+    MovieFile file,
     bool writeMoovTagEarly)
     : maxFrames_(maxFrames), reserveMetadataSpace_(reserveMetadataSpace),
-      onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose), onError_(onError),
+      onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose),
       writeMoovTagEarly_(writeMoovTagEarly)
 {
     /* allocate the output media context */
@@ -197,11 +198,11 @@ MovieWriter::~MovieWriter()
     }
     catch (const std::exception& ex)
     {
-        onError_(ex.what());
+        FDN_ERROR(ex.what());
     }
     catch (...)
     {
-        onError_("unhandled error on closing");
+        FDN_ERROR("unhandled error on closing");
     }
 }
 
@@ -227,12 +228,12 @@ int MovieWriter::c_onWrite(void *context, uint8_t *data, int size)
     }
     catch (const std::exception &ex)
     {
-        writer->onError_(ex.what());
+        FDN_ERROR(ex.what());
         return -1;
     }
     catch (...)
     {
-        writer->onError_("unhandled exception while writing");
+        FDN_ERROR("unhandled exception while writing");
         return -1;
     }
     return size;
@@ -254,12 +255,12 @@ int64_t MovieWriter::c_onSeek(void *context, int64_t seekPos, int whence)
     }
     catch (const std::exception &ex)
     {
-        writer->onError_(ex.what());
+        FDN_ERROR(ex.what());
         return -1;
     }
     catch (...)
     {
-        writer->onError_("unhandled exception while seeking");
+        FDN_ERROR("unhandled exception while seeking");
         return -1;
     }
 }

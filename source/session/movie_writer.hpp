@@ -55,7 +55,7 @@ public:
                 int encodedBitDepth,  // rgb=24, rgba=32 etc. Needs to be set correctly for some playback importers (eg After Effects) 
                 Rational frameRate,
                 int32_t maxFrames, int32_t reserveMetadataSpace,
-                MovieFile file, MovieErrorCallback onError,
+                MovieFile file,
                 bool writeMoovTagEarly
     );
     ~MovieWriter();
@@ -81,7 +81,6 @@ private:
     MovieWriteCallback onWrite_;
     MovieSeekCallback onSeek_;
     MovieCloseCallback onClose_;
-    MovieErrorCallback onError_;
 
     bool writeMoovTagEarly_;
 

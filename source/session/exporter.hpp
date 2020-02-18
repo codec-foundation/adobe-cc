@@ -192,7 +192,7 @@ std::unique_ptr<Exporter> createExporter(
     const FrameSize& frameSize, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
-    const MovieFile& file, MovieErrorCallback errorCallback,
+    const MovieFile& file,
     bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
     bool writeMoovTagEarly
 );

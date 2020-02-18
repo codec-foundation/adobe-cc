@@ -522,8 +522,7 @@ static prMALError c_onFrameComplete(
 #endif
 }
 
-static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_int32 fileObject,
-                                 MovieErrorCallback errorCallback)
+static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_int32 fileObject)
 {
     // cache some things
     auto Write = exportFileSuite->Write;
@@ -546,7 +545,7 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
     fileWrapper.onWrite = [=](const uint8_t* buffer, size_t size) {
         prMALError writeError = Write(fileObject, (void *)buffer, (int32_t)size);
         if (malNoError != writeError) {
-            errorCallback("Could not write to file");
+            FDN_ERROR("Could not write to file");
             return -1;
         }
         return 0;
@@ -564,7 +563,7 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
             throw std::runtime_error("unhandled file seek mode");
         prMALError seekError = Seek(fileObject, offset, newPosition, seekMode);
         if (malNoError != seekError) {
-            errorCallback("Could not seek in file");
+            FDN_ERROR("Could not seek in file");
             return -1;
         }
         return 0;
@@ -649,9 +648,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     FrameSize frameSize{width.value.intValue, height.value.intValue};
     FrameDef frameDef{frameSize, format};
 
-    MovieErrorCallback errorCallback([&](const char *msg) { settings->reportError(msg); });
-
-    MovieFile movieFile(createMovieFile(settings->exportFileSuite, exportInfoP->fileObject, errorCallback));
+    MovieFile movieFile(createMovieFile(settings->exportFileSuite, exportInfoP->fileObject));
 
     bool withAudio(false);
     int32_t numAudioChannels(0);
@@ -675,7 +672,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             frameRate,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
-            movieFile, errorCallback,
+            movieFile,
             withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
             true  // writeMoovTagEarly
         );
@@ -715,7 +712,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
                 frameRate,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,
-                movieFile, errorCallback,
+                movieFile,
                 withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
                 false   // writeMoovTagEarly
             );

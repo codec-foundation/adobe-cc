@@ -12,7 +12,7 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 }
 
-
+#include "logging.hpp"
 #include "movie_reader.hpp"
 
 
@@ -33,10 +33,9 @@ MovieReader::MovieReader(
     int64_t fileSize,
     MovieReadCallback onRead,
     MovieSeekCallback onSeek,
-    MovieErrorCallback onError,
     MovieCloseCallback onClose)
     : fileSize_(fileSize),
-      onRead_(onRead), onSeek_(onSeek), onError_(onError), onClose_(onClose)
+      onRead_(onRead), onSeek_(onSeek), onClose_(onClose)
 {
     int ret;
 
@@ -240,12 +239,12 @@ int MovieReader::c_onRead(void *context, uint8_t *data, int size)
     }
     catch (const std::exception &ex)
     {
-        obj->onError_(ex.what());
+        FDN_ERROR(ex.what());
         return -1;
     }
     catch (...)
     {
-        obj->onError_("unhandled exception while writing");
+        FDN_ERROR("unhandled exception while writing");
         return -1;
     }
     return size;
@@ -266,12 +265,12 @@ int64_t MovieReader::c_onSeek(void *context, int64_t seekPos, int whence)
     }
     catch (const std::exception &ex)
     {
-        obj->onError_(ex.what());
+        FDN_ERROR(ex.what());
         return -1;
     }
     catch (...)
     {
-        obj->onError_("unhandled exception while seeking");
+        FDN_ERROR("unhandled exception while seeking");
         return -1;
     }
 }

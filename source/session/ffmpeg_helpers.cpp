@@ -3,8 +3,7 @@
 #include "ffmpeg_helpers.hpp"
 #include "logging.hpp"
 
-MovieFile createMovieFile(const std::string &filename,
-                          MovieErrorCallback errorCallback)
+MovieFile createMovieFile(const std::string &filename)
 {
     MovieFile fileWrapper;
     auto file=std::make_shared<FILE *>((FILE *)nullptr);
@@ -23,7 +22,7 @@ MovieFile createMovieFile(const std::string &filename,
     fileWrapper.onWrite = [=](const uint8_t* buffer, size_t size) {
         auto nWritten = fwrite(buffer, size, 1, *file);
         if (!nWritten) {
-            errorCallback("Could not write to file");
+            FDN_ERROR("Could not write to file");
             return -1;
         }
         return 0;
@@ -35,7 +34,7 @@ MovieFile createMovieFile(const std::string &filename,
         auto result = fseek(*file, offset, whence);
 #endif
         if (0 != result) {
-            errorCallback("Could not seek in file");
+            FDN_ERROR("Could not seek in file");
             return -1;
         }
         return 0;

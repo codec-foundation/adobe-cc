@@ -579,14 +579,13 @@ AEIO_StartAdding(
 
             int32_t maxFrames = (int32_t)((int64_t)duration.value * fps / A_Fixed_ONE / duration.scale);
             int reserveMetadataSpace = 0;
-            auto movieErrorCallback = [](...) {};
             bool withAudio = (soundRateF > 0);
             int sampleRate = int(soundRateF);
             int numAudioChannels = num_channels;
             int audioBytesPerSample = bytes_per_sample;
             AudioEncoding audioEncoding = ((snd_encoding == AEIO_E_UNSIGNED_PCM) ? AudioEncoding_Unsigned_PCM : AudioEncoding_Signed_PCM);
 
-            auto movieFile = createMovieFile(filePath, [](...) {});
+            auto movieFile = createMovieFile(filePath);
 
             movieFile.onOpenForWrite();  //!!! move to writer
 
@@ -605,7 +604,6 @@ AEIO_StartAdding(
                 maxFrames,
                 reserveMetadataSpace,
                 movieFile,
-                movieErrorCallback,
                 withAudio,
                 sampleRate,
                 numAudioChannels,

@@ -19,7 +19,6 @@ public:
         int64_t fileSize,
         MovieReadCallback onRead,
         MovieSeekCallback onSeek,
-        MovieErrorCallback onError,
         MovieCloseCallback onClose
     );
     ~MovieReader();
@@ -69,7 +68,6 @@ private:
 
     MovieReadCallback onRead_;
     MovieSeekCallback onSeek_;
-    MovieErrorCallback onError_;
     MovieCloseCallback onClose_;
 };
 

@@ -112,9 +112,6 @@ static std::pair<std::unique_ptr<MovieReader>, HANDLE> createMovieReader(const s
 
                 return 0;
             },
-            [&](const char *msg) {
-                //!!! report here
-            },
             [fileRef]() {
                 CloseHandle(fileRef);
                 return 0;
@@ -170,9 +167,6 @@ static std::pair<std::unique_ptr<MovieReader>, imFileRef> createMovieReader(cons
                     throw std::runtime_error("could not seek");
 
                 return 0;
-            },
-            [&](const char *msg) {
-                //!!! report here
             },
             [fileRef]() {
                 fclose(fileRef);
