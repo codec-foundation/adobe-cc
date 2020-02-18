@@ -650,19 +650,19 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
     MovieFile movieFile(createMovieFile(settings->exportFileSuite, exportInfoP->fileObject));
 
-    bool withAudio(false);
-    int32_t numAudioChannels(0);
-    int audioSampleRate(0);
-    if (exportInfoP->exportAudio) 
-    {
-        withAudio = true;
-
+    std::optional<AudioDef> audio;
+    if (exportInfoP->exportAudio) {
         exParamValues sampleRate, channelType;
         settings->exportParamSuite->GetParamValue(exID, 0, ADBEAudioRatePerSecond, &sampleRate);
         settings->exportParamSuite->GetParamValue(exID, 0, ADBEAudioNumChannels, &channelType);
-        audioSampleRate = (int)sampleRate.value.floatValue;
-        numAudioChannels = GetNumberOfAudioChannels(channelType.value.intValue);
-    }
+
+        audio = AudioDef{
+            GetNumberOfAudioChannels(channelType.value.intValue),
+            (int)sampleRate.value.floatValue,
+            2,
+            AudioEncoding_Signed_PCM
+        };
+    };
 
     try {
         settings->exporter = createExporter(
@@ -671,11 +671,11 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
             movieFile,
-            withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
+            audio,
             true  // writeMoovTagEarly
         );
 
-        if (withAudio)
+        if (audio)
             renderAndWriteAllAudio(exportInfoP, error, *settings->exporter);
 
         exportLoop(exportInfoP, error);
@@ -709,11 +709,11 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,
                 movieFile,
-                withAudio, audioSampleRate, numAudioChannels, 2, AudioEncoding_Signed_PCM,
+                audio,
                 false   // writeMoovTagEarly
             );
 
-            if (withAudio)
+            if (audio)
                 renderAndWriteAllAudio(exportInfoP, error, *settings->exporter);
 
             exportLoop(exportInfoP, error);

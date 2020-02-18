@@ -579,11 +579,17 @@ AEIO_StartAdding(
 
             int32_t maxFrames = (int32_t)((int64_t)duration.value * fps / A_Fixed_ONE / duration.scale);
             int reserveMetadataSpace = 0;
+
+            std::optional<AudioDef> audio;
             bool withAudio = (soundRateF > 0);
-            int sampleRate = int(soundRateF);
-            int numAudioChannels = num_channels;
-            int audioBytesPerSample = bytes_per_sample;
-            AudioEncoding audioEncoding = ((snd_encoding == AEIO_E_UNSIGNED_PCM) ? AudioEncoding_Unsigned_PCM : AudioEncoding_Signed_PCM);
+            if (withAudio) {
+                audio = AudioDef{
+                    num_channels,
+                    int(soundRateF),
+                    bytes_per_sample,
+                    ((snd_encoding == AEIO_E_UNSIGNED_PCM) ? AudioEncoding_Unsigned_PCM : AudioEncoding_Signed_PCM)
+                };
+            };
 
             auto movieFile = createMovieFile(filePath);
 
@@ -602,11 +608,7 @@ AEIO_StartAdding(
                 maxFrames,
                 reserveMetadataSpace,
                 movieFile,
-                withAudio,
-                sampleRate,
-                numAudioChannels,
-                audioBytesPerSample,
-                audioEncoding,
+                audio,
                 false // writeMoovTagEarly
             );
         }

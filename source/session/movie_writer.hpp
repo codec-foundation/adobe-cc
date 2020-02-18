@@ -56,12 +56,11 @@ public:
                 Rational frameRate,
                 int32_t maxFrames, int32_t reserveMetadataSpace,
                 MovieFile file,
+                std::optional<AudioDef> audio,
                 bool writeMoovTagEarly
     );
     ~MovieWriter();
 
-    //void addVideoStream(VideoFormat videoFormat, int width, int height, int64_t frameRateNumerator, int64_t frameRateDenominator);
-    void addAudioStream(int numChannels, int sampleRate, int bytesPerSample, AudioEncoding encoding);
     void writeVideoFrame(const uint8_t* data, size_t size);
     void writeAudioFrame(const uint8_t *data, size_t size, int64_t pts);
 
@@ -72,6 +71,8 @@ public:
     void close(); // can throw. Call ahead of destruction if onClose errors must be caught externally.
 
 private:
+    //void addVideoStream(VideoFormat videoFormat, int width, int height, int64_t frameRateNumerator, int64_t frameRateDenominator);
+    void addAudioStream(const AudioDef& audio);
     int64_t guessMoovSize();
 
     // need enough information to calculate space to reserve for moov atom

@@ -80,6 +80,7 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     MovieFile file,
+    std::optional<AudioDef> audio,
     bool writeMoovTagEarly)
     : maxFrames_(maxFrames), reserveMetadataSpace_(reserveMetadataSpace),
       onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose),
@@ -162,6 +163,12 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     ioContext_.reset(ioContext);
 
     formatContext->pb = ioContext_.get();
+
+    if (audio)
+    {
+        addAudioStream(*audio);
+    }
+
     //writeHeader();
 }
 
@@ -267,7 +274,7 @@ int64_t MovieWriter::c_onSeek(void *context, int64_t seekPos, int whence)
     }
 }
 
-void MovieWriter::addAudioStream(int numChannels, int sampleRate, int bytesPerSample, AudioEncoding encoding)
+void MovieWriter::addAudioStream(const AudioDef& audio)
 {
     audioStream_ = avformat_new_stream(formatContext_.get(), NULL);
     if (!audioStream_)
@@ -275,7 +282,7 @@ void MovieWriter::addAudioStream(int numChannels, int sampleRate, int bytesPerSa
 
     audioStream_->id = formatContext_->nb_streams - 1;
 
-    setAVCodecParams(numChannels, sampleRate, bytesPerSample, encoding, *audioStream_->codecpar);
+    setAVCodecParams(audio.numChannels, audio.sampleRate, audio.bytesPerSample, audio.encoding, *audioStream_->codecpar);
 }
 
 void MovieWriter::writeVideoFrame(const uint8_t *data, size_t size)

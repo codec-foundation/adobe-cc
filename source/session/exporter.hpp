@@ -193,6 +193,6 @@ std::unique_ptr<Exporter> createExporter(
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file,
-    bool withAudio, int sampleRate, int32_t numAudioChannels, int32_t audioBytesPerSample, AudioEncoding audioEncoding,
+    std::optional<AudioDef> audio,
     bool writeMoovTagEarly
 );
