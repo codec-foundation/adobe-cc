@@ -26,10 +26,36 @@ enum ChannelFormat : uint32_t
     ChannelFormat_F32     = 0x05       // 32 bits 0 - 1.0f typically
 };
 
+inline size_t bytesPerPixel(ChannelFormat format)
+{
+    switch (format) {
+        case ChannelFormat_U16:
+        case ChannelFormat_U16_32k:
+        case ChannelFormat_F16:
+            return 8;
+        case ChannelFormat_F32:
+            return 16;
+        case ChannelFormat_U8:
+        default:
+            return 4;
+    }
+}
+
+inline size_t bytesPerPixel(FrameFormat format)
+{
+    return ::bytesPerPixel(format & ChannelFormatMask);
+}
+
 enum ChannelLayout : uint32_t
 {
     ChannelLayout_ARGB = 0x0100,
     ChannelLayout_BGRA = 0x0200
+};
+
+struct FrameSize
+{
+    int32_t width;
+    int32_t height;
 };
 
 enum FrameOrigin : uint32_t
@@ -41,13 +67,12 @@ enum FrameOrigin : uint32_t
 
 struct FrameDef
 {
-    FrameDef(int width_, int height_,
+    FrameDef(FrameSize size_,
              FrameFormat format_)
-        : width(width_), height(height_), format(format_)
+        : size(size_), format(format_)
     { }
 
-    int width;
-    int height;
+    FrameSize size;
     FrameFormat format;
 
     ChannelFormat channelFormat() const { return (ChannelFormat) (format & ChannelFormatMask); }
@@ -55,16 +80,7 @@ struct FrameDef
     FrameOrigin origin() const { return (FrameOrigin) (format & FrameOriginMask); };
 
     size_t bytesPerPixel() const {
-        switch (channelFormat()) {
-        case ChannelFormat_U16:
-        case ChannelFormat_U16_32k:
-            return 8;
-        case ChannelFormat_F32:
-            return 16;
-        case ChannelFormat_U8:
-        default:
-            return 4;
-        }
+        return ::bytesPerPixel(channelFormat());
     }
 };
 
@@ -88,9 +104,9 @@ typedef std::array<char, 4> Codec4CC;
 typedef std::array<unsigned int, 2> HapChunkCounts;  //!!! move this
 
 struct EncoderParametersBase {
-    EncoderParametersBase(const FrameDef& frameDef_, CodecAlpha alpha_, Codec4CC codec4CC_,
+    EncoderParametersBase(const FrameSize& frameSize_, CodecAlpha alpha_, Codec4CC codec4CC_,
                           HapChunkCounts chunkCounts_, int quality_)
-        : frameDef(frameDef_), alpha(alpha_), codec4CC(codec4CC_),
+        : frameSize(frameSize_), alpha(alpha_), codec4CC(codec4CC_),
           chunkCounts(chunkCounts_), quality(quality_) {}
     virtual ~EncoderParametersBase() {}
 
@@ -99,7 +115,7 @@ struct EncoderParametersBase {
     //    //const std:function<void (const std::string&, int, int, int &)>& slider
     // );
 
-    FrameDef frameDef;
+    FrameSize frameSize;
     CodecAlpha alpha;
     Codec4CC codec4CC;
     HapChunkCounts chunkCounts; //!!! move this

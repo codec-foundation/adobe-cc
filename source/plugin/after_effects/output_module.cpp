@@ -544,33 +544,25 @@ AEIO_StartAdding(
             return A_Err_PARAMETER;
 
         try {
+            FrameSize size{widthL, heightL};
             CodecAlpha codecAlpha;
-
-            //!!! this is irrelevant - AEX will deliver whatever it 'thinks best' later
-            FrameFormat format(FrameOrigin_TopLeft | ChannelLayout_ARGB);
             switch (depth) {
             case 24:
-                format |= ChannelFormat_U8;
                 codecAlpha = withoutAlpha;
                 break;
             case 32:
-                format |= ChannelFormat_U8;
                 codecAlpha = withAlpha;
                 break;
             case 48:
-                format |= ChannelFormat_U16_32k;
                 codecAlpha = withoutAlpha;
                 break;
             case 64:
-                format |= ChannelFormat_U16_32k;
                 codecAlpha = withAlpha;
                 break;
             case 96:
-                format |= ChannelFormat_F32;   // (?)
                 codecAlpha = withoutAlpha;
                 break;
             case 128:
-                format |= ChannelFormat_F32;   // (?)
                 codecAlpha = withAlpha;
                 break;
             default:
@@ -604,8 +596,7 @@ AEIO_StartAdding(
             HapChunkCounts chunkCounts{ static_cast<unsigned int>(optionsUP->chunkCount), static_cast<unsigned int>(optionsUP->chunkCount)};
 
             optionsUP->exporter = createExporter(
-                FrameDef(widthL, heightL,
-                         format),
+                size,
                 codecAlpha,
                 codec4CC,
                 chunkCounts,

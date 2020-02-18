@@ -475,8 +475,14 @@ static prMALError wrapped_c_onFrameComplete(
         if (malNoError != error)
             throw std::runtime_error("could not GetRowBytes on completed frame");
 
+        // !!! we know we're getting this format because we asked for it, but
+        // !!! would probably be better to ask inRenderedFrame what it is
+        const auto& codec = *CodecRegistry::codec();
+        ChannelFormat channelFormat(codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8); // requested frames in keeping with the codec's high bit depth
+        FrameFormat format(channelFormat | FrameOrigin_BottomLeft | ChannelLayout_BGRA);
+
         for (auto iFrame = inFrameNumber; iFrame < inFrameNumber + inFrameRepeatCount; ++iFrame)
-            settings->exporter->dispatchVideo(iFrame, (uint8_t*)bgra_buffer, bgra_stride, 0);  //!!! could support multiple formats here
+            settings->exporter->dispatchVideo(iFrame, (uint8_t*)bgra_buffer, bgra_stride, format);
     }
     catch (const std::exception& ex)
     {
@@ -640,7 +646,8 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
     
     ChannelFormat channelFormat(codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
     FrameFormat format(channelFormat | FrameOrigin_BottomLeft | ChannelLayout_BGRA);
-    FrameDef frameDef(width.value.intValue, height.value.intValue, format);
+    FrameSize frameSize{width.value.intValue, height.value.intValue};
+    FrameDef frameDef{frameSize, format};
 
     MovieErrorCallback errorCallback([&](const char *msg) { settings->reportError(msg); });
 
@@ -664,7 +671,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
         movieFile.onOpenForWrite();  //!!! move to writer
 
         settings->exporter = createExporter(
-            frameDef, alpha, videoFormat, chunkCounts, quality,
+            frameSize, alpha, videoFormat, chunkCounts, quality,
             frameRate,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
@@ -704,7 +711,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             movieFile.onOpenForWrite();  //!!! move to writer
 
             settings->exporter = createExporter(
-                frameDef, alpha, videoFormat, chunkCounts, quality,
+                frameSize, alpha, videoFormat, chunkCounts, quality,
                 frameRate,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,

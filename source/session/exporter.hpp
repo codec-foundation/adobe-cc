@@ -189,7 +189,7 @@ private:
 };
 
 std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
+    const FrameSize& frameSize, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,

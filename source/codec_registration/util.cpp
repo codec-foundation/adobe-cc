@@ -102,25 +102,26 @@ template<int SRC_FOR_DEST0, int SRC_FOR_DEST1, int SRC_FOR_DEST2, int SRC_FOR_DE
 
 void convertHostFrameTo_RGBA_Top_Left_U16(const uint8_t *data, size_t stride, const FrameDef& frameDef, uint16_t *dest, size_t destStrideInBytes)
 {
+    auto size = frameDef.size;
     switch (frameDef.format)
     {
         case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U16_32k:
-            copy_flip_scaled<2, 1, 0, 3>((uint16_t*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 65535.0 / 32768.0);
+            copy_flip_scaled<2, 1, 0, 3>((uint16_t*)data, stride, size.width, size.height, dest, destStrideInBytes, 65535.0 / 32768.0);
             break;
         case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_U16_32k:
-            copy_noflip_scaled<1, 2, 3, 0>((uint16_t *)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 65535.0/32768.0);
+            copy_noflip_scaled<1, 2, 3, 0>((uint16_t *)data, stride, size.width, size.height, dest, destStrideInBytes, 65535.0/32768.0);
             break;
         case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_F32:
-            copy_flip_scaled<2, 1, 0, 3>((float *)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 65535.0);
+            copy_flip_scaled<2, 1, 0, 3>((float *)data, stride, size.width, size.height, dest, destStrideInBytes, 65535.0);
             break;
         case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_F32:
-            copy_noflip_scaled<2, 1, 0, 3>((float *)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 65535.0);
+            copy_noflip_scaled<2, 1, 0, 3>((float *)data, stride, size.width, size.height, dest, destStrideInBytes, 65535.0);
             break;
         case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U8:
-            copy_flip_scaled<2, 1, 0, 3>((uint8_t *)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 256.0);
+            copy_flip_scaled<2, 1, 0, 3>((uint8_t *)data, stride, size.width, size.height, dest, destStrideInBytes, 256.0);
             break;
         case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_U8:
-            copy_noflip_scaled<1, 2, 3, 0>((uint8_t *)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 256.0);
+            copy_noflip_scaled<1, 2, 3, 0>((uint8_t *)data, stride, size.width, size.height, dest, destStrideInBytes, 256.0);
             break;
         default:
             throw std::runtime_error("unhandled host format");
@@ -129,16 +130,17 @@ void convertHostFrameTo_RGBA_Top_Left_U16(const uint8_t *data, size_t stride, co
 
 void convertRGBA_Top_Left_U16_ToHostFrame(const uint16_t* source, uint8_t *data, size_t stride, const FrameDef& frameDef)
 {
+    auto size = frameDef.size;
     switch (frameDef.format)
     {
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U16_32k:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, frameDef.width * 8, frameDef.width, frameDef.height, (uint16_t*)data, stride, 32768.0/65535.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, size.width * 8, size.width, size.height, (uint16_t*)data, stride, 32768.0/65535.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_F32:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t *)source, frameDef.width * 8, frameDef.width, frameDef.height, (float*)data, stride, 1.0 / 65535.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t *)source, size.width * 8, size.width, size.height, (float*)data, stride, 1.0 / 65535.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U8:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t *)source, frameDef.width * 8, frameDef.width, frameDef.height, (uint8_t*)data, stride, 1.0/256.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t *)source, size.width * 8, size.width, size.height, (uint8_t*)data, stride, 1.0/256.0);
         break;
     default:
         throw std::runtime_error("unhandled host format");
@@ -148,25 +150,26 @@ void convertRGBA_Top_Left_U16_ToHostFrame(const uint16_t* source, uint8_t *data,
 
 void convertHostFrameTo_RGBA_Top_Left_U8(const uint8_t* data, size_t stride, const FrameDef& frameDef, uint8_t* dest, size_t destStrideInBytes)
 {
+    auto size = frameDef.size;
     switch (frameDef.format)
     {
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U16_32k:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 255.0 / 32768.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)data, stride, size.width, size.height, dest, destStrideInBytes, 255.0 / 32768.0);
         break;
     case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_U16_32k:
-        copy_noflip_scaled<1, 2, 3, 0>((uint16_t*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 255.0 / 32768.0);
+        copy_noflip_scaled<1, 2, 3, 0>((uint16_t*)data, stride, size.width, size.height, dest, destStrideInBytes, 255.0 / 32768.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_F32:
-        copy_flip_scaled<2, 1, 0, 3>((float*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 255.0);
+        copy_flip_scaled<2, 1, 0, 3>((float*)data, stride, size.width, size.height, dest, destStrideInBytes, 255.0);
         break;
     case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_F32:
-        copy_noflip_scaled<2, 1, 0, 3>((float*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 255.0);
+        copy_noflip_scaled<2, 1, 0, 3>((float*)data, stride, size.width, size.height, dest, destStrideInBytes, 255.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U8:
-        copy_flip_scaled<2, 1, 0, 3>((uint8_t*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 1.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint8_t*)data, stride, size.width, size.height, dest, destStrideInBytes, 1.0);
         break;
     case ChannelLayout_ARGB | FrameOrigin_TopLeft | ChannelFormat_U8:
-        copy_noflip_scaled<1, 2, 3, 0>((uint8_t*)data, stride, frameDef.width, frameDef.height, dest, destStrideInBytes, 1.0);
+        copy_noflip_scaled<1, 2, 3, 0>((uint8_t*)data, stride, size.width, size.height, dest, destStrideInBytes, 1.0);
         break;
     default:
         throw std::runtime_error("unhandled host format");
@@ -175,16 +178,17 @@ void convertHostFrameTo_RGBA_Top_Left_U8(const uint8_t* data, size_t stride, con
 
 void convertRGBA_Top_Left_U8_ToHostFrame(const uint8_t* source, uint8_t* data, size_t stride, const FrameDef& frameDef)
 {
+    auto size = frameDef.size;
     switch (frameDef.format)
     {
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U16_32k:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, frameDef.width * 4, frameDef.width, frameDef.height, (uint16_t*)data, stride, 32768.0 / 255.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, size.width * 4, size.width, size.height, (uint16_t*)data, stride, 32768.0 / 255.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_F32:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, frameDef.width * 4, frameDef.width, frameDef.height, (float*)data, stride, 1.0 / 255.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, size.width * 4, size.width, size.height, (float*)data, stride, 1.0 / 255.0);
         break;
     case ChannelLayout_BGRA | FrameOrigin_BottomLeft | ChannelFormat_U8:
-        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, frameDef.width * 4, frameDef.width, frameDef.height, (uint8_t*)data, stride, 1.0);
+        copy_flip_scaled<2, 1, 0, 3>((uint16_t*)source, size.width * 4, size.width, size.height, (uint8_t*)data, stride, 1.0);
         break;
     default:
         throw std::runtime_error("unhandled host format");

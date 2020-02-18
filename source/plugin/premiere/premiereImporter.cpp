@@ -279,7 +279,7 @@ ImporterOpenFile8(
         );
 
         auto decoderParameters = std::make_unique<DecoderParametersBase>(
-            FrameDef((*localRecH)->movieReader->width(), (*localRecH)->movieReader->height(),
+            FrameDef(FrameSize{(*localRecH)->movieReader->width(), (*localRecH)->movieReader->height()},
                      format
                     )
             );

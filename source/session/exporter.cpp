@@ -474,7 +474,7 @@ bool Exporter::expandWorkerPoolToCapacity() const
 }
 
 std::unique_ptr<Exporter> createExporter(
-    const FrameDef& frameDef, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
+    const FrameSize& frameSize, CodecAlpha alpha, Codec4CC videoFormat, HapChunkCounts chunkCounts, int quality,
     Rational frameRate,
     int32_t maxFrames, int32_t reserveMetadataSpace,
     const MovieFile& file, MovieErrorCallback errorCallback,
@@ -483,7 +483,7 @@ std::unique_ptr<Exporter> createExporter(
 )
 {
     std::unique_ptr<EncoderParametersBase> parameters = std::make_unique<EncoderParametersBase>(
-        frameDef,
+        frameSize,
         alpha,
         videoFormat,
         chunkCounts,
@@ -494,7 +494,7 @@ std::unique_ptr<Exporter> createExporter(
 
     std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
         videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
-        frameDef.width, frameDef.height,
+        frameSize.width, frameSize.height,
         encoder->encodedBitDepth(),
         frameRate,
         maxFrames, reserveMetadataSpace,
