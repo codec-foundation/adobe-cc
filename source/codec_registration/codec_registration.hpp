@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 
+
 // Details of frame
 
 // ChannelFormat, ChannelLayout and FrameOrigin are | combined into FrameFormat
@@ -21,7 +22,8 @@ enum ChannelFormat : uint32_t
     ChannelFormat_U8      = 0x01,      //  8 bits 0-255
     ChannelFormat_U16_32k = 0x02,      // 16 bits 0-32768  (not 32767; matches AEX)
     ChannelFormat_U16     = 0x03,      // 16 bits 0-65535
-    ChannelFormat_F32     = 0x04       // 32 bits 0 - 1.0f typically
+    ChannelFormat_F16     = 0x04,      // 16 bits
+    ChannelFormat_F32     = 0x05       // 32 bits 0 - 1.0f typically
 };
 
 enum ChannelLayout : uint32_t
