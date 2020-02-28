@@ -346,13 +346,57 @@ prMALError endInstance(exportStdParms* stdParmsP, exExporterInstanceRec* instanc
 
 	return result;
 }
+// !!! intermediate functionality to be used prior to unifying creating
+// !!! an EncoderParams from premiere's exporter settings
+struct EncoderSettings
+{
+    CodecAlpha alpha;
+    Codec4CC videoFormat;
+    int quality;
+};
+
+static EncoderSettings getVideoEncoderSettings(PrSDKExportParamSuite* paramSuite, csSDK_uint32 exID)
+{
+    const csSDK_int32 mgroupIndex = 0;
+
+    const auto& codec = *CodecRegistry::codec();
+
+    Codec4CC videoFormat;
+    if (codec.details().hasSubTypes())
+    {
+        exParamValues subTypeParamValue;
+        paramSuite->GetParamValue(exID, mgroupIndex, ADBEVideoCodec, &subTypeParamValue);
+        videoFormat = reinterpret_cast<Codec4CC&>(subTypeParamValue.value.intValue);
+    }
+    else {
+        videoFormat = codec.details().videoFormat;
+    }
+
+    CodecAlpha alpha{ withAlpha };
+    bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
+    if (hasExplicitAlphaChannel) {
+        exParamValues includeAlphaChannel;
+        paramSuite->GetParamValue(exID, 0, codec.details().premiereIncludeAlphaChannelName.c_str(), &includeAlphaChannel);
+        alpha = includeAlphaChannel.value.intValue ? withAlpha : withoutAlpha;
+    };
+
+    exParamValues qualityParamValue;
+    paramSuite->GetParamValue(exID, 0, ADBEVideoQuality, &qualityParamValue);
+    auto codecQualityDetails = codec.details().quality;
+    int clampedQuality{0};
+    if (codec.details().hasQualityForSubType(videoFormat)) {
+        auto qualityValue = qualityParamValue.value.intValue;
+        auto description = codecQualityDetails.descriptions.find(qualityValue);
+        clampedQuality = (description == codecQualityDetails.descriptions.end()) ? codecQualityDetails.defaultQuality : qualityValue;
+    }
+
+    return EncoderSettings{alpha, videoFormat, clampedQuality};
+}
 
 prMALError queryOutputSettings(exportStdParms *stdParmsP, exQueryOutputSettingsRec *outputSettingsP)
 {
 	const csSDK_uint32 exID = outputSettingsP->exporterPluginID;
-    exParamValues width, height, frameRate, subTypeParamValue;
-    bool hasSubType{ false };
-    Codec4CC subType;
+    exParamValues width, height, frameRate;
     ExportSettings* privateData = reinterpret_cast<ExportSettings*>(outputSettingsP->privateData);
 	PrSDKExportParamSuite* paramSuite = privateData->exportParamSuite;
 	const csSDK_int32 mgroupIndex = 0;
@@ -370,11 +414,6 @@ prMALError queryOutputSettings(exportStdParms *stdParmsP, exQueryOutputSettingsR
 		paramSuite->GetParamValue(exID, mgroupIndex, ADBEVideoFPS, &frameRate);
 		outputSettingsP->outVideoFrameRate = frameRate.value.timeValue;
 
-
-        hasSubType = true;
-        paramSuite->GetParamValue(exID, mgroupIndex, ADBEVideoCodec, &subTypeParamValue);
-        subType = reinterpret_cast<Codec4CC&>(subTypeParamValue.value.intValue);
-
         outputSettingsP->outVideoAspectNum = 1;
 		outputSettingsP->outVideoAspectDen = 1;
 		// paramSuite->GetParamValue(exID, mgroupIndex, ADBEVideoFieldType, &fieldType);
@@ -387,7 +426,9 @@ prMALError queryOutputSettings(exportStdParms *stdParmsP, exQueryOutputSettingsR
 		privateData->timeSuite->GetTicksPerSecond(&ticksPerSecond);
 		fps = static_cast<float>(ticksPerSecond) / frameRate.value.timeValue;
 
-        videoBitrate = static_cast<csSDK_uint32>(width.value.intValue * height.value.intValue * codec.getPixelFormatSize(hasSubType, subType) * fps);
+        auto [alpha, videoFormat, quality] = getVideoEncoderSettings(paramSuite, exID);
+
+        videoBitrate = static_cast<csSDK_uint32>(width.value.intValue * height.value.intValue * codec.getPixelFormatSize(alpha, videoFormat, quality) * fps);
 
         outputSettingsP->outBitratePerSecond = videoBitrate * 8 / 1000;
     }
@@ -609,33 +650,19 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 {
     const csSDK_uint32 exID = exportInfoP->exporterPluginID;
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(exportInfoP->privateData);
-    exParamValues ticksPerFrame, width, height, includeAlphaChannel, subTypeParam, quality, chunkCountParam;
-    Codec4CC videoFormat{ 0 };
+    exParamValues ticksPerFrame, width, height, chunkCountParam;
     bool hasChunkCount{ false };
     PrTime ticksPerSecond;
 
     const auto& codec = *CodecRegistry::codec();
-    bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
 
     settings->logMessage("codec implementation: " + CodecRegistry::logName());
 
     settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoFPS, &ticksPerFrame);
     settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoWidth, &width);
     settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoHeight, &height);
-    if (codec.details().hasSubTypes())
-    {
-        settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoCodec, &subTypeParam);
-        videoFormat = reinterpret_cast<Codec4CC&>(subTypeParam.value.intValue);
-    }
-    else {
-        videoFormat = codec.details().videoFormat;
-    }
-    CodecAlpha alpha{ withAlpha };
-    if (hasExplicitAlphaChannel) {
-        settings->exportParamSuite->GetParamValue(exID, 0, codec.details().premiereIncludeAlphaChannelName.c_str(), &includeAlphaChannel);
-        alpha = includeAlphaChannel.value.intValue ? withAlpha : withoutAlpha;
-    }
-    settings->exportParamSuite->GetParamValue(exID, 0, ADBEVideoQuality, &quality);
+
+    auto [alpha, videoFormat, quality] = getVideoEncoderSettings(settings->exportParamSuite, exID);
 
     int chunkCount{ 0 };
     if (codec.details().hasChunkCount) {
@@ -658,9 +685,6 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
 
     int32_t maxFrames = int32_t(double((exportInfoP->endTime - exportInfoP->startTime)) / ticksPerFrame.value.timeValue);
     
-    //!!!
-    int clampedQuality = std::clamp(quality.value.intValue, 1, 5);
-
     ChannelFormat channelFormat(codec.details().isHighBitDepth ? ChannelFormat_U16_32k : ChannelFormat_U8); // we're going to request frames in keeping with the codec's high bit depth
     FrameFormat format(channelFormat | FrameOrigin_BottomLeft | ChannelLayout_BGRA);
     FrameDef frameDef(width.value.intValue, height.value.intValue, format);
@@ -687,7 +711,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
         movieFile.onOpenForWrite();  //!!! move to writer
 
         settings->exporter = createExporter(
-            frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
+            frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, quality,
             frameRate,
             maxFrames,
             exportInfoP->reserveMetaDataSpace,
@@ -725,7 +749,7 @@ static void renderAndWriteAllVideo(exDoExportRec* exportInfoP, prMALError& error
             movieFile.onOpenForWrite();  //!!! move to writer
 
             settings->exporter = createExporter(
-                frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, clampedQuality,
+                frameDef, alpha, videoFormat, hasChunkCount, chunkCounts, quality,
                 frameRate,
                 maxFrames,
                 exportInfoP->reserveMetaDataSpace,

@@ -300,7 +300,17 @@ public:
 
     // codec properties
     static const CodecDetails& details();
-    static int getPixelFormatSize(bool hasSubType, Codec4CC subType); // !!! for bitrate calculation; should be moved to encoder
+
+    static double getPixelFormatSize(
+        CodecAlpha alpha,
+        Codec4CC subType,
+        int quality);
+        // in bytes. Fractional as some formats group compress.
+        // for bitrate calculation / filesize estimation in Adobe; AME will refuse to encode if
+        // not enough space for output.
+        // !!! this should be on EncoderParameters, or at least have the same interface
+        // !!! as its constructor. TODO: refactor user of getPixelFormatSize so this would
+        // !!! be convenient.
 
     // as much information about the codec that will be doing the job as possible - eg gpu vs cpu, codebase etc
     // for output to log
