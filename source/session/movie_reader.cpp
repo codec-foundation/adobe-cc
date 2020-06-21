@@ -30,12 +30,9 @@ extern "C" {
 // =======================================================
 MovieReader::MovieReader(
     VideoFormat videoFormat,
-    int64_t fileSize,
-    MovieReadCallback onRead,
-    MovieSeekCallback onSeek,
-    MovieCloseCallback onClose)
-    : fileSize_(fileSize),
-      onRead_(onRead), onSeek_(onSeek), onClose_(onClose)
+    MovieFile file)
+    : fileSize_(file.fileSize),
+      onRead_(file.onRead), onSeek_(file.onSeek), onClose_(file.onClose)
 {
     int ret;
 
@@ -105,13 +102,22 @@ MovieReader::MovieReader(
             case AVMEDIA_TYPE_VIDEO:
                 if (codecpar->codec_tag == desiredVideoTag) {
                     videoStreamIdx_ = (int)i;
-                    width_ = codecpar->width;
-                    height_ = codecpar->height;
 
                     int64_t frameRateGCD = std::gcd(stream->r_frame_rate.num, stream->r_frame_rate.den);
-                    frameRateNumerator_ = (int)(stream->r_frame_rate.num / frameRateGCD);
-                    frameRateDenominator_ = (int)(stream->r_frame_rate.den / frameRateGCD);
-                    numFrames_ = stream->nb_frames;
+                    auto encoderName = av_dict_get(stream->metadata, "encoder", nullptr, 0);
+
+                    video_ = VideoDef{
+                        codecpar->width,
+                        codecpar->height,
+                        videoFormat,
+                        encoderName ? encoderName->value : "<unknown>",
+                        codecpar->bits_per_coded_sample,
+                        Rational{
+                            (int)(stream->r_frame_rate.num / frameRateGCD),
+                            (int)(stream->r_frame_rate.den / frameRateGCD)
+                        },
+                        stream->nb_frames
+                    };
                 }
                 break;
             default:
@@ -256,7 +262,7 @@ int64_t MovieReader::c_onSeek(void *context, int64_t seekPos, int whence)
     try
     {
         if (whence & AVSEEK_SIZE) {
-            return obj->fileSize();
+            return obj->fileSize_;
         } else {
             whence &= (~AVSEEK_FORCE);  // we don't want this potential option to interfere
 

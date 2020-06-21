@@ -39,145 +39,6 @@ AdobeImporterAPI::~AdobeImporterAPI()
     BasicSuite->ReleaseSuite(kPrSDKTimeSuite, kPrSDKTimeSuiteVersion);
 }
 
-// helper to create movie reader wrapped around an imFileRef that the Adobe SDK
-// wishes to manage
-#ifdef PRWIN_ENV
-static std::pair<std::unique_ptr<MovieReader>, HANDLE> createMovieReader(const std::wstring& filePath)
-{
-    FDN_INFO("opening ", SDKStringConvert::to_string(filePath), " for reading");
-
-    HANDLE fileRef = CreateFileW(filePath.c_str(),
-        GENERIC_READ,
-        FILE_SHARE_READ,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL);
-
-    // Check to see if file is valid
-    if (fileRef == INVALID_HANDLE_VALUE)
-    {
-        auto error = GetLastError();
-
-        throw std::runtime_error(std::string("could not open ")
-                                 + SDKStringConvert::to_string(filePath) + " - error " + std::to_string(error));
-    }
-
-    // fileSize is *only* needed by the seek wrapper for ffmpeg
-    int64_t fileSize;
-    LARGE_INTEGER ffs;
-    if (GetFileSizeEx(fileRef, &ffs)) {
-        fileSize = ffs.QuadPart;
-    }
-    else {
-        fileSize = -1; // this is expected by seek wrapper as meaning "I can't do that"
-    }
-
-    return std::pair<std::unique_ptr<MovieReader>, HANDLE>(
-        std::make_unique<MovieReader>(
-            CodecRegistry::codec()->details().videoFormat,
-            fileSize,
-            [&, fileRef](uint8_t* buffer, size_t size) {
-                DWORD bytesReadLu;
-                BOOL ok = ReadFile(fileRef,
-                    (LPVOID)buffer, (DWORD)size,
-                    &bytesReadLu,
-                    NULL);
-                if (!ok)
-                    throw std::runtime_error("could not read");
-                return bytesReadLu;
-            },
-            [&, fileRef](int64_t offset, int whence) {
-                DWORD         dwMoveMethod;
-                LARGE_INTEGER distanceToMove;
-                distanceToMove.QuadPart = offset;
-
-                if (whence == SEEK_SET)
-                    dwMoveMethod = FILE_BEGIN;
-                else if (whence == SEEK_END)
-                    dwMoveMethod = FILE_END;
-                else if (whence == SEEK_CUR)
-                    dwMoveMethod = FILE_CURRENT;
-                else
-                    throw std::runtime_error("unhandled file seek mode");
-
-                BOOL ok = SetFilePointerEx(
-                    fileRef,
-                    distanceToMove,
-                    NULL,
-                    FILE_BEGIN);
-
-                if (!ok)
-                    throw std::runtime_error("could not read");
-
-                return 0;
-            },
-            [fileRef]() {
-                CloseHandle(fileRef);
-                return 0;
-            }
-        ),
-        fileRef);
-}
-
-#else
-
-static std::pair<std::unique_ptr<MovieReader>, imFileRef> createMovieReader(const std::wstring& filePath)
-{
-    FDN_INFO("opening ", SDKStringConvert::to_string(filePath), " for reading");
-
-    FILE *fileRef = fopen(SDKStringConvert::to_string(filePath).c_str(), "rb");
-    
-    // Check to see if file is valid
-    if (fileRef == nullptr)
-    {
-        auto error = errno;
-
-        throw std::runtime_error(std::string("could not open ")
-                                 + SDKStringConvert::to_string(filePath) + " - error " + std::to_string(error));
-    }
-
-    // fileSize is *only* needed by the seek wrapper for ffmpeg
-    long fileSize;
-    if (fseek(fileRef, 0, SEEK_END) == 0)
-    {
-        // returns -1 on failure, which matches our expected failure value below
-        fileSize = ftell(fileRef);
-    }
-    else
-    {
-        fileSize = -1; // this is expected by seek wrapper as meaning "I can't do that"
-    }
-
-    rewind(fileRef);
-
-    return std::pair<std::unique_ptr<MovieReader>, imFileRef>(
-        std::make_unique<MovieReader>(
-            CodecRegistry::codec()->details().videoFormat,
-            fileSize,
-            [&, fileRef](uint8_t* buffer, size_t size) {
-                size_t read = fread(static_cast<void *>(buffer), 1, size, fileRef);
-                
-                if (read != size && !feof(fileRef))
-                    throw std::runtime_error("could not read");
-                return read;
-            },
-            [&, fileRef](int64_t offset, int whence) {
-                if (fseek(fileRef, offset, whence) != 0)
-                    throw std::runtime_error("could not seek");
-
-                return 0;
-            },
-            [fileRef]() {
-                fclose(fileRef);
-                return 0;
-            }
-        ),
-        fileRef);
-}
-
-#endif
-
 static prMALError 
 ImporterInit(
     imStdParms        *stdParms, 
@@ -236,7 +97,7 @@ ImporterGetPrefs8(
 prMALError
 ImporterOpenFile8(
     imStdParms		*stdParms,
-    imFileRef		*fileRef,
+    imFileRef		*,
     imFileOpenRec8	*fileOpenRec8)
 {
     prMALError			result = malNoError;
@@ -258,11 +119,10 @@ ImporterOpenFile8(
 
     // open the file
     try {
-        auto readerAndHandle = createMovieReader((*localRecH)->filePath);
-        (*localRecH)->movieReader = std::move(readerAndHandle.first);
-        *fileRef = readerAndHandle.second;
-
         FileFormat fileFormat = codec.details().fileFormat;
+
+        (*localRecH)->movieReader = createMovieReader(fileFormat, (*localRecH)->filePath);
+
         fileOpenRec8->fileinfo.filetype = reinterpret_cast<csSDK_int32&>(fileFormat);
 
         (*localRecH)->importerID = fileOpenRec8->inImporterID;
@@ -298,12 +158,11 @@ ImporterOpenFile8(
 static prMALError
 ImporterQuietFile(
     imStdParms			*stdParms,
-    imFileRef			*fileRef,
+    imFileRef			*,
     void				*privateData)
 {
     ImporterLocalRec8H localRecH = (ImporterLocalRec8H)privateData;
     (*localRecH)->movieReader.reset(0);
-    *fileRef = imInvalidHandleValue;
 
     return malNoError;
 }
@@ -316,7 +175,7 @@ ImporterQuietFile(
 static prMALError
 ImporterCloseFile(
     imStdParms			*stdParms,
-    imFileRef			*fileRef,
+    imFileRef			*,
     void				*privateData)
 {
     ImporterLocalRec8H ldataH = reinterpret_cast<ImporterLocalRec8H>(privateData);
@@ -325,9 +184,6 @@ ImporterCloseFile(
     // CLEANUP - Destroy the handle we created to avoid memory leaks
     if (ldataH && *ldataH) //!!!  && (*ldataH)->BasicSuite)  either it was constructed, or its null.
     {
-        // !!! only reason to call this is because it zeroes imFileRef
-        ImporterQuietFile(stdParms, fileRef, privateData);
-
         (*ldataH)->~ImporterLocalRec8();
         stdParms->piSuites->memFuncs->disposeHandle(reinterpret_cast<char**>(ldataH));
     }
@@ -560,7 +416,7 @@ static void deinterleave(const T* source, CHANNELS_T nChannels, NSAMPLES_T nSamp
 static prMALError
 ImporterImportAudio7(
     imStdParms *stdParms,
-    imFileRef   fileRef,
+    imFileRef   ,
     imImportAudioRec7 *importAudioRec7)
 {
     prMALError result = malNoError;
@@ -645,7 +501,7 @@ SDKPreferredFrameSize(
 static prMALError 
 ImporterGetSourceVideo(
     imStdParms          *stdparms, 
-    imFileRef            fileRef, 
+    imFileRef            , 
     imSourceVideoRec    *sourceVideoRec)
 {
     //!!!prMALError        result      = malNoError;
@@ -731,8 +587,9 @@ ImporterCreateAsyncImporter(
     // Create and initialize async importer
     // Deleted during aiClose
     auto ldata = (*reinterpret_cast<ImporterLocalRec8H>(asyncImporterCreationRec->inPrivateData));
-    auto movieReaderAndFileRef = createMovieReader(ldata->filePath);
-    auto movieReader = std::move(movieReaderAndFileRef.first);
+    const auto codec = *CodecRegistry::codec();
+    auto fileFormat = codec.details().fileFormat;
+    auto movieReader = createMovieReader(fileFormat, ldata->filePath);
     auto width = movieReader->width();
     auto height = movieReader->height();
     auto numerator = movieReader->frameRateNumerator();

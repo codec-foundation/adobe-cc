@@ -8,6 +8,14 @@
 #include <ostream>
 #include <string>
 
+#ifdef __APPLE__
+#include <boost/filesystem.hpp>
+namespace fs = ::boost::filesystem;
+#else
+#include <filesystem>
+namespace fs = ::std::filesystem;
+#endif
+
 extern"C"
 {
 #include <libavcodec/avcodec.h>
@@ -15,10 +23,17 @@ extern"C"
 #include <libavutil/opt.h>
 }
 
+#ifdef WIN32
+typedef HANDLE FileHandle;
+#else
+typedef void* FileHandle;
+#endif
+
 typedef std::array<char, 4> FileFormat;
 typedef std::array<char, 4> VideoFormat;
 typedef std::function<void ()> MovieOpenCallback;                               // throws error on fail
 typedef std::function<void ()> MovieOpenForWriteCallback;
+typedef std::function<void ()> MovieOpenForReadCallback;
 typedef std::function<size_t(uint8_t*, int size)> MovieReadCallback;            // return 0 on success, -ve on failure
 typedef std::function<size_t(const uint8_t*, int size)> MovieWriteCallback;     // return 0 on success, -ve on failure
 typedef std::function<int (int64_t offset, int whence)> MovieSeekCallback;      // return 0 on success, -ve on failure
@@ -27,12 +42,18 @@ typedef std::function<int ()> MovieCloseCallback;                               
 struct MovieFile
 {
     MovieOpenForWriteCallback onOpenForWrite;
-    MovieWriteCallback onWrite;
+    MovieOpenForReadCallback onOpenForRead;
+    MovieWriteCallback onWrite;  // not set for read files
     MovieSeekCallback onSeek;
     MovieCloseCallback onClose;
+    MovieReadCallback onRead;    // not set for write files
+    
+    int64_t fileSize{-1};  // !!! needed by MovieReader for ffmpeg seek/size; remove if possible
 };
 
 MovieFile createMovieFile(const std::string &filename);
+class MovieReader;
+std::unique_ptr<MovieReader> createMovieReader(VideoFormat videoFormat, const fs::path& filePath);
 
 // wrappers for libav-* objects
 

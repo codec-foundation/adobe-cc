@@ -16,10 +16,7 @@ class MovieReader
 public:
     MovieReader(
         VideoFormat videoFormat,
-        int64_t fileSize,
-        MovieReadCallback onRead,
-        MovieSeekCallback onSeek,
-        MovieCloseCallback onClose
+        MovieFile file
     );
     ~MovieReader();
 
@@ -29,17 +26,16 @@ public:
     const int64_t numAudioFrames() const { if (hasAudio()) return audioCache_->numFrames(); else throw std::runtime_error("no audio"); }
     void readAudio(size_t samplePos, size_t size, std::vector<uint8_t> &audio_);
 
-    int64_t fileSize() const { return fileSize_; }  // this is used by avio seek :(
-
-    int width() const { return width_; }
-    int height() const { return height_;  }
-    int frameRateNumerator() const { return frameRateNumerator_; }
-    int frameRateDenominator() const { return frameRateDenominator_; }
-    int64_t numFrames() const { return numFrames_; }
+    int width() const { return video_.width; }
+    int height() const { return video_.height;  }
+    int frameRateNumerator() const { return video_.frameRate.numerator; }
+    int frameRateDenominator() const { return video_.frameRate.denominator; }
+    int64_t numFrames() const { return video_.maxFrames; }
+    VideoDef video() const { return video_; }
 
 private:
     std::string filespec_; // path + filename
-    int64_t fileSize_;
+    int64_t fileSize_;     // !!! needed by avio seek; see if can be removed
 
     //CodecContext videoCodecContext_;
     FormatContext formatContext_;
@@ -47,12 +43,12 @@ private:
     int videoStreamIdx_{-1};
     int audioStreamIdx_{-1};
 
-    int width_{0};
-    int height_{0};
     int frameRateNumerator_{0};
     int frameRateDenominator_{0};
     int64_t numFrames_{0};
 
+    VideoDef video_;
+    
     // audio, valid if audioStreamIdx_>=0
     std::unique_ptr<AudioDef> audioDef_;
     std::unique_ptr<SampleCache> audioCache_;

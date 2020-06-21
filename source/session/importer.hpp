@@ -41,6 +41,8 @@ public:
 
     void close();  // call ahead of destruction in order to recognise errors
 
+    int64_t nFrames() const;
+    
     void push(ImportJob job);
     ImportJob read();  // returns the job that was read
 
@@ -106,6 +108,8 @@ public:
     // throw, 'close' can and will
     void close();
 
+    int64_t nFrames() const;
+    
     void requestFrame(
         int32_t iFrame,
         std::function<void(const DecoderJob&)> onSuccess,

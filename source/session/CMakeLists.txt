@@ -4,6 +4,12 @@ project(CodecFoundationSession)
 # ide layout
 set(CMAKE_FOLDER foundation/session)
 
+if (APPLE)
+    set(Boost_USE_STATIC_LIBS ON CACHE BOOL "Always use boost static libs" FORCE)
+    set(Boost_USE_MULTITHREADED TRUE CACHE BOOL "Use boost multithreaded" FORCE)
+    find_package(Boost 1.72 REQUIRED COMPONENTS filesystem)
+endif(APPLE)
+
 # this is the one we will install
 add_library(CodecFoundationSession)
 

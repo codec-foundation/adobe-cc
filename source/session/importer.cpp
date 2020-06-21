@@ -16,6 +16,11 @@ ImporterJobReader::ImporterJobReader(std::unique_ptr<MovieReader> reader)
 {
 }
 
+int64_t ImporterJobReader::nFrames() const
+{
+    return reader_->numFrames();
+}
+
 void ImporterJobReader::push(ImportJob job)
 {
     std::lock_guard<std::mutex> guard(mutex_);
@@ -239,6 +244,11 @@ void Importer::close()
         if (error_)
             throw std::runtime_error("error on close");
     }
+}
+
+int64_t Importer::nFrames() const
+{
+    return jobReader_.nFrames();
 }
 
 void Importer::requestFrame(int32_t iFrame,
