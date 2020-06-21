@@ -6,16 +6,18 @@
 #include <filesystem>
 #endif
 
+#ifdef __APPLE__
+#include <boost/filesystem.hpp>
+namespace fs = ::boost::filesystem;
+#else
+#include <filesystem>
+namespace fs = ::std::filesystem;
+#endif
+
 namespace fdn
 {
 
-#ifndef __APPLE__
-typedef std::filesystem::path PathType;
-#else
-// using std::filesystem::path introduces a requirement for macOS > 10.15
-// !!! revisit when support for < 10.15 is dropped
-typedef std::string PathType;
-#endif
+typedef fs::path PathType;
 PathType getConfigurationPath();
 
 }

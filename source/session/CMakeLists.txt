@@ -26,6 +26,7 @@ target_sources(CodecFoundationSession
 
 target_link_libraries(CodecFoundationSession
     PUBLIC
+        $<$<PLATFORM_ID:Darwin>:Boost::filesystem>
         ffmpeg::libavformat
         ffmpeg::libavcodec
         ffmpeg::libavutil        

@@ -151,12 +151,7 @@ private:
                 break;
             case LoggerLocationStyle::ShortWithThreadName:
                 full
-#ifndef __APPLE__
                     << std::filesystem::path(codeLocation->file).filename().string()
-#else
-                    << codeLocation->file
-                    // !!! required for < 10.15
-#endif
                     << "(" << codeLocation->line << ") "
                     << threadNameIt->second << " " << severityAsString << text;
                 break;
@@ -178,12 +173,7 @@ private:
     void messageOutputLoop(PathType logPath, LoggerLocationStyle locationStyle)
     {
         PathType logFileName =
-#ifndef __APPLE__
             logPath / (FOUNDATION_CODEC_NAME "-log.txt");
-#else
-            logPath + "/" + (FOUNDATION_CODEC_NAME "-log.txt");
-            // !!! < 10.15 needs this
-#endif
         std::ofstream out;
         if (logFileName != "")
             out.open(logFileName.c_str());
