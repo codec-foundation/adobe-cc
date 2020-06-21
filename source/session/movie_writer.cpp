@@ -75,15 +75,14 @@ extern "C" {
     extern AVOutputFormat ff_mov_muxer;
 }
 // =======================================================
-MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
-    int width, int height, int encodedBitDepth,
-    Rational frameRate,
-    int32_t maxFrames, int32_t reserveMetadataSpace,
+MovieWriter::MovieWriter(
+    int32_t reserveMetadataSpace,
     MovieFile file,
+    const VideoDef& video,
     std::optional<AudioDef> audio,
     bool writeMoovTagEarly)
-    : maxFrames_(maxFrames), reserveMetadataSpace_(reserveMetadataSpace),
-      onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose),
+    : video_(video), reserveMetadataSpace_(reserveMetadataSpace),
+      onWrite_(file.onWrite), onSeek_(file.onSeek), onClose_(file.onClose),      
       writeMoovTagEarly_(writeMoovTagEarly)
 {
     file.onOpenForWrite();
@@ -102,7 +101,7 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
         throw std::runtime_error("Could not allocate stream");
     }
     videoStream_->id = formatContext_->nb_streams - 1;
-    videoStream_->codecpar->codec_tag = MKTAG(videoFormat[0], videoFormat[1], videoFormat[2], videoFormat[3]);
+    videoStream_->codecpar->codec_tag = MKTAG(video.format[0], video.format[1], video.format[2], video.format[3]);
 
     //!!! we want to do this alone
     //!!!     videoStream_->codecpar->codec_id = AV_CODEC_ID_WRAPPED_AVFRAME;
@@ -124,16 +123,16 @@ MovieWriter::MovieWriter(VideoFormat videoFormat, const std::string& encoderName
     }
 
     videoStream_->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
-    videoStream_->codecpar->width = width;
-    videoStream_->codecpar->height = height;
-    videoStream_->codecpar->bits_per_coded_sample = encodedBitDepth;
-    av_dict_set(&videoStream_->metadata, "encoder", encoderName.c_str(), 0);
+    videoStream_->codecpar->width = video.width;
+    videoStream_->codecpar->height = video.height;
+    videoStream_->codecpar->bits_per_coded_sample = video.encodedBitDepth;
+    av_dict_set(&videoStream_->metadata, "encoder", video.encoderName.c_str(), 0);
 
     /* timebase: This is the fundamental unit of time (in seconds) in terms
     * of which frame timestamps are represented. For fixed-fps content,
     * timebase should be 1/framerate and timestamp increments should be
     * identical to 1. */
-    av_reduce(&streamTimebase_.num, &streamTimebase_.den, frameRate.denominator, frameRate.numerator, INT32_MAX);
+    av_reduce(&streamTimebase_.num, &streamTimebase_.den, video.frameRate.denominator, video.frameRate.numerator, INT32_MAX);
 
     // videoStream_->time_base will later get amplified by mov file format
     // https://github.com/FFmpeg/FFmpeg/blob/a2572e3c670db018a414e9c168eef23ec2e3abc4/libavformat/movenc.c#L6252-L6253
@@ -420,7 +419,7 @@ int64_t MovieWriter::guessMoovSize()
     // problems, as the sample size is uniform).
 
     // things that are frame dependent have more overhead at lower end, so offset the number of frames by a constant
-    auto offsettedMaxFrames_ = maxFrames_ + 120;
+    auto offsettedMaxFrames_ = video_.maxFrames + 120;
 
     auto n_video_chunks_guess = offsettedMaxFrames_;
     auto n_audio_chunks_guess = offsettedMaxFrames_;

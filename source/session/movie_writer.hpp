@@ -29,12 +29,9 @@ Rational SimplifyAndSnapToMpegFrameRate(Rational rational);
 class MovieWriter
 {
 public:
-    MovieWriter(VideoFormat videoFormat, const std::string& encoderName,
-                int width, int height,
-                int encodedBitDepth,  // rgb=24, rgba=32 etc. Needs to be set correctly for some playback importers (eg After Effects) 
-                Rational frameRate,
-                int32_t maxFrames, int32_t reserveMetadataSpace,
+    MovieWriter(int32_t reserveMetadataSpace,
                 MovieFile file,
+                const VideoDef& video,
                 std::optional<AudioDef> audio,
                 bool writeMoovTagEarly
     );
@@ -55,7 +52,7 @@ private:
     int64_t guessMoovSize();
 
     // need enough information to calculate space to reserve for moov atom
-    int32_t maxFrames_;               // maximum number of frames that will be written
+    VideoDef video_;
     int32_t reserveMetadataSpace_;    // space to reserve for XMP_ atom
 
     MovieWriteCallback onWrite_;

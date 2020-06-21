@@ -492,13 +492,23 @@ std::unique_ptr<Exporter> createExporter(
 
     UniqueEncoder encoder = CodecRegistry::codec()->createEncoder(std::move(parameters));
 
-    std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
-        videoFormat, CodecRegistry::codec()->details().fileFormatShortName,
-        frameSize.width, frameSize.height,
+    // !!! instantiation of this class should be moved further out
+    // !!! probably requires putting the encoder on it, which will simplify
+    // !!! other things
+    VideoDef video{
+        frameSize.width,
+        frameSize.height,
+        videoFormat,
+        CodecRegistry::codec()->details().fileFormatShortName,
         encoder->encodedBitDepth(),
         frameRate,
-        maxFrames, reserveMetadataSpace,
+        maxFrames
+    };
+
+    std::unique_ptr<MovieWriter> writer = std::make_unique<MovieWriter>(
+        reserveMetadataSpace,
         file,
+        video,
         audio,
         writeMoovTagEarly   // writeMoovTagEarly
         );
