@@ -26,9 +26,9 @@ enum ChannelFormat : uint32_t
     ChannelFormat_F32     = 0x05       // 32 bits 0 - 1.0f typically
 };
 
-inline size_t bytesPerPixel(ChannelFormat format)
+inline size_t bytesPerPixel(FrameFormat format)
 {
-    switch (format) {
+    switch (format & ChannelFormatMask) {
         case ChannelFormat_U16:
         case ChannelFormat_U16_32k:
         case ChannelFormat_F16:
@@ -41,21 +41,20 @@ inline size_t bytesPerPixel(ChannelFormat format)
     }
 }
 
-inline size_t bytesPerPixel(FrameFormat format)
-{
-    return ::bytesPerPixel(format & ChannelFormatMask);
-}
-
 enum ChannelLayout : uint32_t
 {
     ChannelLayout_ARGB = 0x0100,
-    ChannelLayout_BGRA = 0x0200
+    ChannelLayout_BGRA = 0x0200,
+    ChannelLayout_RGBA = 0x0300
 };
 
 struct FrameSize
 {
     int32_t width;
     int32_t height;
+
+    bool operator==(const FrameSize& rhs) const { return width == rhs.width && height == rhs.height; }
+    bool operator!=(const FrameSize& rhs) const { return width != rhs.width || height != rhs.height; }
 };
 
 enum FrameOrigin : uint32_t
@@ -82,6 +81,11 @@ struct FrameDef
     size_t bytesPerPixel() const {
         return ::bytesPerPixel(channelFormat());
     }
+    size_t stride() const {
+        return size.width * bytesPerPixel();
+    }
+    bool operator==(const FrameDef& rhs) const { return size == rhs.size && format == rhs.format; }
+    bool operator!=(const FrameDef& rhs) const { return size != rhs.size || format != rhs.format; }
 };
 
 struct EncodeOutput
