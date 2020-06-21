@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 
 extern"C"
@@ -166,5 +167,37 @@ inline AudioDef getAVCodecParams(
 
     return AudioDef{ numChannels, sampleRate, bytesPerSample, encoding };
 }
+
+// Framerate timebases
+struct Rational
+{
+    int64_t numerator;
+    int64_t denominator;
+
+    bool operator==(const Rational& rhs) const
+    {
+        return numerator == rhs.numerator && denominator == rhs.denominator;
+    }
+    bool operator!=(const Rational& rhs) const
+    {
+        return numerator != rhs.numerator || denominator != rhs.denominator;
+    }
+};
+
+inline std::ostream& operator<<(std::ostream & lhs, const Rational& rhs) {
+    lhs << "{" << rhs.numerator << "/" << rhs.denominator << "}";
+    return lhs;
+}
+
+struct VideoDef
+{
+    int width;
+    int height;
+    VideoFormat format;
+    std::string encoderName;
+    int encodedBitDepth;  // rgb=24, rgba=32 etc. Needs to be set correctly for some playback importers (eg After Effects) 
+    Rational frameRate;
+    int64_t maxFrames;
+};
 
 #endif
