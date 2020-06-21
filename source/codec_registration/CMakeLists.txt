@@ -3,6 +3,9 @@ project(CodecRegistration)
 
 set (CMAKE_CXX_STANDARD 17)
 
+# ide layout
+set(CMAKE_FOLDER foundation/codec_registration)
+
 if (APPLE)
     find_library(Foundation Foundation)
 endif (APPLE)
@@ -29,8 +32,8 @@ target_compile_definitions(CodecRegistration PUBLIC "FOUNDATION_CODEC_NAME=\"${F
 
 target_link_libraries(CodecRegistration
     nlohmann_json::nlohmann_json
-     $<$<PLATFORM_ID:Windows>:StackWalker>
-     $<$<PLATFORM_ID:Darwin>:${Foundation}>
+    $<$<PLATFORM_ID:Windows>:StackWalker>
+    $<$<PLATFORM_ID:Darwin>:${Foundation}>
 )
 
 target_include_directories(CodecRegistration

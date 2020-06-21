@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 project(CodecFoundationSession)
 
+# ide layout
+set(CMAKE_FOLDER foundation/session)
+
 # this is the one we will install
 add_library(CodecFoundationSession)
 

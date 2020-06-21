@@ -1,6 +1,5 @@
 include(GoogleTest)
 
-
 macro(package_add_test TESTNAME)
     # create an exectuable in which the tests will be stored
     add_executable(${TESTNAME} ${ARGN})
@@ -16,6 +15,9 @@ macro(package_add_test TESTNAME)
     )
     set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
+
+# ide layout
+set(CMAKE_FOLDER foundation/test)
 
 package_add_test(MovieTest
 	movie_test.cpp)

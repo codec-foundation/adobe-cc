@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
+# ide layout
+set(CMAKE_FOLDER foundation)
+
 # modules
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/cmake-pandocology")
 
 # project
 
@@ -26,3 +28,5 @@ option(Foundation_PACKAGE_TESTS "Build the tests" ON)
 
 # plugins
 add_subdirectory(source)
+
+
