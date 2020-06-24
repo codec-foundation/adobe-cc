@@ -96,11 +96,11 @@ Build a local FFmpeg by opening a terminal and moving to external/ffmpeg/FFmpeg.
     ./configure --disable-x86asm --disable-network --disable-everything --enable-muxer=mov --enable-demuxer=mov --disable-zlib --disable-iconv
     make
 
-#### macOS
+### macOS specific
 
-For macos, the homebrew installation is recommended (requires [Homebrew](https://brew.sh)).
+For macos, the Boost library is needed for missing std::filesystem support in Mojave and earlier. The homebrew installation is recommended (requires [Homebrew](https://brew.sh)).
 
-    brew install pandoc
+    brew install boost
 
 ##  Building
 
@@ -160,3 +160,135 @@ The installer is created in the Release directory.
 #### Notarizing macOS Installers
 
 Installers for macOS **must** be notarized by Apple. If you skip this step, users will not be able to install your software. Because it requires prior setup it is not automated. Follow the instructions under "Upload Your App to the Notarization Service" in Apple's [Customizing the Notarization Workflow](https://developer.apple.com/documentation/xcode/notarizing_your_app_before_distribution/customizing_the_notarization_workflow?language=objc) guide.
+
+## Testing
+
+The foundation uses the Google Tests framework.
+
+Test targets are present in IDEs or test executables can be run directly from a commandline.
+
+## Design
+
+### Structure
+
+The layout of a project using the foundation is
+
+    .
+    ├── CMakeLists.txt
+    ├── README.md
+    ├── <sources for your codec>
+    └── external
+        ├── foundation
+        │   └── <foundation source
+        └── <other external modules for your codec>
+
+
+and the foundation layout is
+
+    .
+    ├── external
+    │   ├── StackWalker
+    │   │   <Stack trace functionality; windows only for now>
+    │   ├── adobe
+    │   │   │   <Adobe supplied SDKs must be dropped here>
+    │   │   ├── AfterEffectsSDK
+    │   │   └── premiere
+    │   ├── ffmpeg
+    │   │   <reading and writing to .mov container format>
+    │   ├── googletest
+    │   └── json
+    │       <serialise configuration information for
+    │        logging and for AfterFX ui>
+    ├── installer
+    └── source
+        ├── codec_registration
+        │   <interface that your library must implement,
+        │    plus logging and configuration functionality>
+        ├── plugin
+        │   ├── adobe_shared
+        │   │   <utilities shared between AfterFX and Premiere>  
+        │   ├── after_effects
+        │   │   <output module for AfterFX>
+        │   │   ├── mac
+        │   │   │   <mac UI implementation>
+        │   │   └── win
+        │   │       <windows ui implementation>
+        │   └── premiere
+        │       <premiere plugin used for import in Adobe Media
+        │        Encoder, AfterFX and Premiere; and export in
+        │        Adobe Media Encoder and Premiere>
+        ├── session
+        │   <wrappers for importing and exporting frame
+        │    sequences, and reading / writing .mov files via
+        │    ffmpeg>
+        └── test
+            <test harnesses>
+
+The foundation expects the hosting project to expose its codec via the interfaces defined in codec_registration.
+
+### Build configuration
+
+In its top level CMakeLists, the host should set some codec-specific information to be included throughout the build:
+
+| Variable                                     | Optional | Example                                      | Purpose     |
+| -------------------------------------------- | -------- | -------------------------------------------- | ----------- |
+| Foundation_IDENTIFIER_PREFIX                 | No       | org.YourOrganisationName.YourCodecPluginName |             |
+| Foundation_CODEC_NAME                        | No       | YourCodec                                    |             |
+| Foundation_CodecSpecificComponents           | Yes      |                                              |             |
+| Foundation_FILE_IMPORT_FOUR_CC               | No       | 0x1234ABCDL                                  | unique importer id so After Effects picks plugin up as an importer |
+| Foundation_CODEC_NAME_WITH_HEX_SIZE_PREFIX   | No       | "\\x07MODTHIS"                               | unique id needed for premier plugin. Size must be 0x7 atm, and padded to 7-bytes- we're not using the recommended resource builder step that compiles the correct sizes around this            |
+| Foundation_PRESETS                           | Yes      | list of files                                |             |
+
+### Plugin Configuration
+
+The codec_registration library provides a means of obtaining configuration information both for itself and for your own codecs.
+
+Configuration information is stored in json format, and on windows is loaded from
+
+    C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore\<your plugin name>\config.json
+
+and on macos is loaded from
+
+    /Users/yourusername/Library/Application Support/CodecFoundation/config.json
+
+a sample config.json file on macos is
+
+    {
+        "logging": {
+            "threshold": "debug",
+            "path": "/Users/yourname/Desktop"
+        },
+        "exporter": {
+           "initialWorkers": 1,
+           "maxWorkers": -1
+        }
+    }
+
+meaning that maximum logging is enabled, the exporters start with 1 worker thread and use a maximum of <number of cores on your machine> workers.
+
+Your own configuration may be added alongside these. It is available as parsed json, from which you can serialise. Please see external/json for details.
+
+Assuming you have implemented an nlohmann::json serializer for your configuration information, you could obtain it in your plugin with
+
+    #include "config.hpp"
+
+    ...
+
+    YourConfiguration config;
+    fdn::config().at("exporter").get_to(config);
+    
+### Logging
+
+The foundation also supplies a thread-safe logging facility that you may use in your own code. This is available in the codec_registration library.
+
+Please see logging.hpp for details, but after #including config.hpp you may use the various FDN_<log level> macros.
+
+    FDN_INFO("we are now doing this", b, "something", 17.0);
+    FDN_INFO("we are now doing that", d);
+
+    FDN_DEBUG("testvar7:", testvar7);
+    FDN_WARN("disk space seems low");
+    FDN_ERROR("ran out of disk space");
+    FDN_FATAL("heap corruption detected; exiting");
+
+Logging information is written to the debug output of an attached debugger, and additionally to a logfile as described in the Plugin Configuration section above.
