@@ -151,7 +151,7 @@ private:
                 break;
             case LoggerLocationStyle::ShortWithThreadName:
                 full
-                    << std::filesystem::path(codeLocation->file).filename().string()
+                    << fs::path(codeLocation->file).filename().string()
                     << "(" << codeLocation->line << ") "
                     << threadNameIt->second << " " << severityAsString << text;
                 break;
