@@ -238,6 +238,7 @@ In its top level CMakeLists, the host should set some codec-specific information
 | Foundation_FILE_IMPORT_FOUR_CC               | No       | 0x1234ABCDL                                  | unique importer id so After Effects picks plugin up as an importer |
 | Foundation_CODEC_NAME_WITH_HEX_SIZE_PREFIX   | No       | "\\x07MODTHIS"                               | unique id needed for premier plugin. Size must be 0x7 atm, and padded to 7-bytes- we're not using the recommended resource builder step that compiles the correct sizes around this            |
 | Foundation_PRESETS                           | Yes      | list of files                                |             |
+| Foundation_PACKAGE_TESTS                     | Yes      | FALSE                                        | build or don't build tests |
 
 ### Plugin Configuration
 
