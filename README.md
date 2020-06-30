@@ -28,7 +28,13 @@ The following information is for developers who wish to contribute to the projec
 You'll need a compiler environment appropriate to your operating system. The current plugin has been developed on
 
 -  win64 with Microsoft Visual Studio 2017 Professional.
--  macOS with XCode
+-  macOS with Xcode
+
+### Submodules
+
+Populate FFmpeg and other submodules with
+
+    git submodule update --init --recursive
 
 ### CMake
 
@@ -56,10 +62,6 @@ The following SDKs are required from Adobe.
 ### FFMpeg
 
 FFmpeg 4.0 is used for output of the .mov format.
-
-It is referenced as a submodule of this repository. Fetch the source for building with
-
-    git submodule update --init
 
 The FFMpeg build is not wrapped by the plugin's cmake build process, and must be made in a platform specific process as descibed below.
 
