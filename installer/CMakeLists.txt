@@ -63,6 +63,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 if (DEFINED Foundation_PRESETS)
     if (APPLE)
+        # This is a relative path for CPack's staging directory - no leading /
         set (Foundation_CC_PLUGIN_INSTALL_DESTINATION "Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore")
         # Configure postinstall script to install Presets for CC
         set(Foundation_PRESETS_INSTALL_SRC

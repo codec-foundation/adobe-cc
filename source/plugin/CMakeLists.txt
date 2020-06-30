@@ -4,7 +4,8 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 set(CMAKE_FOLDER foundation/plugin)
 
 if (APPLE)
-    set (Foundation_CC_PLUGIN_INSTALL_DESTINATION "/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore")
+    # This is a relative path for CPack's staging directory - no leading /
+    set (Foundation_CC_PLUGIN_INSTALL_DESTINATION "Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore")
 else ()
     set (Foundation_CC_PLUGIN_INSTALL_DESTINATION .)
 endif ()
