@@ -33,10 +33,12 @@ add_library(CodecRegistration
 target_compile_definitions(CodecRegistration PUBLIC "FOUNDATION_CODEC_NAME=\"${Foundation_CODEC_NAME}\"")
 
 target_link_libraries(CodecRegistration
-    $<$<PLATFORM_ID:Darwin>:Boost::boost>
-    nlohmann_json::nlohmann_json
-    $<$<PLATFORM_ID:Windows>:StackWalker>
-    $<$<PLATFORM_ID:Darwin>:${Foundation}>
+    PUBLIC
+        $<$<PLATFORM_ID:Darwin>:Boost::boost>
+        nlohmann_json::nlohmann_json
+    PRIVATE
+        $<$<PLATFORM_ID:Windows>:StackWalker>
+        $<$<PLATFORM_ID:Darwin>:${Foundation}>
 )
 
 target_include_directories(CodecRegistration

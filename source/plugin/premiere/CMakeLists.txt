@@ -37,6 +37,7 @@ target_link_libraries(PremierePlugin
         CodecFoundationSession
         AdobePremiereSdk
         AdobeShared
+        $<$<PLATFORM_ID:Windows>:StackWalker>
         $<$<PLATFORM_ID:Darwin>:${Foundation}>
 )
 

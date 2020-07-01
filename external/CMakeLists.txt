@@ -14,6 +14,10 @@ add_subdirectory(googletest)
 
 if (WIN32)
     add_subdirectory(StackWalker)
+    # StackWalker has a bad value for its target_include_directories(), so specify the actual location here
+	target_include_directories(StackWalker
+	    PUBLIC $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/StackWalker/Main/StackWalker>
+	)
 endif ()
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")

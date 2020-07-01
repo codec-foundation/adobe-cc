@@ -74,6 +74,7 @@ target_link_libraries(AfterEffectsPlugin
         CodecRegistration
         CodecFoundationSession
         nlohmann_json::nlohmann_json
+        $<$<PLATFORM_ID:Windows>:StackWalker>
         $<$<PLATFORM_ID:Darwin>:${AppKit}>
 )
 
