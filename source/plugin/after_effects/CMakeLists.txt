@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
 project(AfterEffectsPlugin)
 
-add_definitions(-DCODEC_NAME_WITH_HEX_SIZE_PREFIX={Foundation_CODEC_NAME_WITH_HEX_SIZE_PREFIX})
+add_definitions(-DCODEC_NAME_WITH_HEX_SIZE_PREFIX=${Foundation_CODEC_NAME_WITH_HEX_SIZE_PREFIX})
 
 # this is the one we will install
 add_library(AfterEffectsPlugin MODULE)

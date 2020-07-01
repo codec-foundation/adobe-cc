@@ -4,7 +4,7 @@ project(PremierePlugin)
 # this is the one we will install
 add_library(PremierePlugin MODULE)
 
-add_definitions(-DFOUNDATION_FILE_IMPORT_FOUR_CC={Foundation_FILE_IMPORT_FOUR_CC})
+add_definitions(-DFOUNDATION_FILE_IMPORT_FOUR_CC=${Foundation_FILE_IMPORT_FOUR_CC})
 
 target_sources(PremierePlugin
     PRIVATE
