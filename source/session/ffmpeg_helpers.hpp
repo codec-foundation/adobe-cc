@@ -23,12 +23,6 @@ extern"C"
 #include <libavutil/opt.h>
 }
 
-#ifdef WIN32
-typedef HANDLE FileHandle;
-#else
-typedef void* FileHandle;
-#endif
-
 typedef std::array<char, 4> FileFormat;
 typedef std::array<char, 4> VideoFormat;
 typedef std::function<void ()> MovieOpenCallback;                               // throws error on fail

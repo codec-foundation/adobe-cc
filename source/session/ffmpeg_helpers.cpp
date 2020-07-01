@@ -48,18 +48,16 @@ MovieFile createMovieFile(const std::string &filename)
 }
 
 
-// helper to create movie reader wrapped around a <FileHandle> that is compatible with
+// helper to create movie reader wrapped around a <HANDLE> that is compatible with
 // the Adobe SDK
 #ifdef WIN32
-std::unique_ptr<MovieFile> createMovieFileReader(VideoFormat videoFormat, const fs::path& filePath)
+std::unique_ptr<MovieReader> createMovieReader(VideoFormat videoFormat, const fs::path& filePath)
 {
 	MovieFile file;
 
-	std::shared_ptr<FileHandle> handle = std::make_shared<FileHandle>(0);
-
     FDN_INFO("opening ", filePath, " for reading");
 
-    HANDLE fileRef = CreateFileW(filePath.wstring(),
+    HANDLE fileRef = CreateFileW(filePath.wstring().data(),
         GENERIC_READ,
         FILE_SHARE_READ,
         NULL,
