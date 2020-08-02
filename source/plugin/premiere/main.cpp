@@ -373,11 +373,16 @@ static EncoderSettings getVideoEncoderSettings(PrSDKExportParamSuite* paramSuite
     }
 
     CodecAlpha alpha{ withAlpha };
-    bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
-    if (hasExplicitAlphaChannel) {
-        exParamValues includeAlphaChannel;
-        paramSuite->GetParamValue(exID, 0, codec.details().premiereIncludeAlphaChannelName.c_str(), &includeAlphaChannel);
-        alpha = includeAlphaChannel.value.intValue ? withAlpha : withoutAlpha;
+    auto codecAlphaDetails = codec.details().alpha;
+    if (codecAlphaDetails.hasPerSubtypeAlphaSupport) {
+        alpha = codecAlphaDetails.subtypeAlphaSupport[videoFormat];
+    } else {
+        bool hasExplicitAlphaChannel{ codec.details().hasExplicitIncludeAlphaChannel };
+        if (hasExplicitAlphaChannel) {
+            exParamValues includeAlphaChannel;
+            paramSuite->GetParamValue(exID, 0, codec.details().premiereIncludeAlphaChannelName.c_str(), &includeAlphaChannel);
+            alpha = includeAlphaChannel.value.intValue ? withAlpha : withoutAlpha;
+        }
     };
 
     exParamValues qualityParamValue;
@@ -465,6 +470,8 @@ static prMALError wrapped_c_onFrameComplete(
 
     try
     {
+        FDN_DEBUG("received frame inWhichPass=", inWhichPass, " inFrameNumber=", inFrameNumber, " inFrameRepeatCount=", inFrameRepeatCount);
+
         char* bgra_buffer;
         int32_t bgra_stride;
         prMALError error = settings->ppixSuite->GetPixels(inRenderedFrame, PrPPixBufferAccess_ReadOnly, &bgra_buffer);
@@ -577,15 +584,22 @@ static MovieFile createMovieFile(PrSDKExportFileSuite* exportFileSuite, csSDK_in
 
 void exportLoop(exDoExportRec* exportInfoP, prMALError& error)
 {
+    const csSDK_uint32 exID = exportInfoP->exporterPluginID;
     ExportSettings* settings = reinterpret_cast<ExportSettings*>(exportInfoP->privateData);
 
     ExportLoopRenderParams renderParams;
 
     renderParams.inRenderParamsSize = sizeof(ExportLoopRenderParams);
     renderParams.inRenderParamsVersion = kPrSDKExporterUtilitySuiteVersion;
-    renderParams.inFinalPixelFormat = CodecRegistry::codec()->details().isHighBitDepth
-        ? PrPixelFormat_BGRA_4444_16u // PrPixelFormat_BGRA_4444_32f
-        : PrPixelFormat_BGRA_4444_8u;
+    auto isHighBitDepth = CodecRegistry::codec()->details().isHighBitDepth;
+    auto [alpha, videoFormat, quality] = getVideoEncoderSettings(settings->exportParamSuite, exID);
+    renderParams.inFinalPixelFormat = 
+        (alpha==withAlpha) ? (isHighBitDepth
+                              ? PrPixelFormat_BGRA_4444_16u // PrPixelFormat_BGRA_4444_32f
+                              : PrPixelFormat_BGRA_4444_8u)
+                           : (isHighBitDepth
+                              ? PrPixelFormat_BGRX_4444_16u // PrPixelFormat_BGRA_4444_32f
+                              : PrPixelFormat_BGRX_4444_8u);
     renderParams.inStartTime = exportInfoP->startTime;
     renderParams.inEndTime = exportInfoP->endTime;
     renderParams.inReservedProgressPreRender = 0.0; //!!!

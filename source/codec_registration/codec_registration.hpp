@@ -267,6 +267,11 @@ typedef std::unique_ptr<Decoder, std::function<void(Decoder *)>> UniqueDecoder;
 typedef std::pair<Codec4CC, std::string> CodecNamedSubType;
 typedef std::vector<CodecNamedSubType> CodecNamedSubTypes;
 
+struct AlphaCodecDetails {
+    bool hasPerSubtypeAlphaSupport;
+    std::map<Codec4CC, CodecAlpha> subtypeAlphaSupport;
+};
+
 struct QualityCodecDetails {
     bool hasQualityForAnySubType;
     std::map<Codec4CC, bool> presentForSubType;
@@ -288,6 +293,7 @@ struct CodecDetails
     bool isHighBitDepth;             // should host expect high bit depth from this codec
     bool hasExplicitIncludeAlphaChannel;
     bool hasChunkCount;
+    AlphaCodecDetails alpha;
     QualityCodecDetails quality;
     uint32_t premiereParamsVersion;              // Adobe Premiere parameters version
     std::string premiereGroupName;               // Adobe Premiere group name for storage
