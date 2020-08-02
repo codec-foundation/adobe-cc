@@ -95,8 +95,10 @@ This will take a while.
 
 Build a local FFmpeg by opening a terminal and moving to external/ffmpeg/FFmpeg. Then
 
-    ./configure --disable-x86asm --disable-network --disable-everything --enable-muxer=mov --enable-demuxer=mov --disable-zlib --disable-iconv
+    ./configure --disable-x86asm --disable-network --disable-everything --enable-muxer=mov --enable-demuxer=mov --disable-zlib --disable-iconv --extra-cflags='-mmacosx-version-min=10.13' --extra-cxxflags='-mmacosx-version-min=10.13' --extra-objcflags='-mmacosx-version-min=10.13' --extra-ldflags='-mmacosx-version-min=10.13'
     make
+
+Check the value for macosx-version-min matches that used by the rest of the project.
 
 ### macOS specific
 
