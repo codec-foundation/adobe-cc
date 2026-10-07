@@ -54,6 +54,9 @@ elseif (APPLE)
         PROPERTIES
             OUTPUT_NAME "${Foundation_CODEC_NAME}PremierePlugin"
     )
+    # export only the exporter + importer entry points, so the statically linked FFmpeg's
+    # av_* / ff_* symbols can't collide with the FFmpeg copies other plugins load
+    target_link_options(PremierePlugin PRIVATE "LINKER:-exported_symbol,_xSDKExport" "LINKER:-exported_symbol,_xImportEntry")
 endif()
 
 if (NOT DEFINED Foundation_CC_PLUGIN_INSTALL_DESTINATION)

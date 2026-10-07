@@ -13,6 +13,8 @@
 
 #ifdef WIN32
 #include <Windows.h>
+// <Windows.h> maps ReportEvent to ReportEventA, which breaks PrSDKExporterUtilitySuite::ReportEvent
+#undef ReportEvent
 #include "StackWalker.h"
 #endif
 
