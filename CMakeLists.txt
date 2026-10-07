@@ -15,7 +15,8 @@ if(MSVC)
     # add_compile_options(/arch:AVX2)
     # may want to use this for specific source files
 else()
-    add_compile_options(-msse4.1)
+    # x86 slices only - lets a universal (arm64 + x86_64) macOS build compile
+    add_compile_options("SHELL:-Xarch_x86_64 -msse4.1")
 endif()
 
 # library dependencies

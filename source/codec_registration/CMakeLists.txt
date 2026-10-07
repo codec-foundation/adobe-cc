@@ -7,8 +7,6 @@ set (CMAKE_CXX_STANDARD 17)
 set(CMAKE_FOLDER foundation/codec_registration)
 
 if (APPLE)
-    set(Boost_USE_STATIC_LIBS ON CACHE BOOL "Always use boost static libs" FORCE)
-    find_package(Boost 1.72 REQUIRED COMPONENTS filesystem)
     find_library(Foundation Foundation)
 endif (APPLE)
 
@@ -34,7 +32,6 @@ target_compile_definitions(CodecRegistration PUBLIC "FOUNDATION_CODEC_NAME=\"${F
 
 target_link_libraries(CodecRegistration
     PUBLIC
-        $<$<PLATFORM_ID:Darwin>:Boost::boost>
         nlohmann_json::nlohmann_json
     PRIVATE
         $<$<PLATFORM_ID:Windows>:StackWalker>
