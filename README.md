@@ -93,18 +93,24 @@ This will take a while.
 
 #### macOS
 
-Build a local FFmpeg by opening a terminal and moving to external/ffmpeg/FFmpeg. Then
+Plugins are built universal (arm64 + x86_64), so FFmpeg is built once per architecture out of tree, then the two are combined with `lipo` into one install prefix. From a scratch directory:
 
-    ./configure --disable-x86asm --disable-network --disable-everything --enable-muxer=mov --enable-demuxer=mov --disable-zlib --disable-iconv --extra-cflags='-mmacosx-version-min=10.13' --extra-cxxflags='-mmacosx-version-min=10.13' --extra-objcflags='-mmacosx-version-min=10.13' --extra-ldflags='-mmacosx-version-min=10.13'
-    make
+    SRC=<path to>/external/ffmpeg/FFmpeg
+    for A in arm64 x86_64; do
+      mkdir -p $A && (cd $A &&
+        $SRC/configure --prefix=$PWD/install --enable-cross-compile --arch=$A --target-os=darwin           --cc="clang -arch $A -mmacosx-version-min=11.0" --disable-asm --disable-network --disable-everything           --enable-muxer=mov --enable-demuxer=mov --disable-zlib --disable-iconv --disable-programs --disable-doc           --extra-cflags="-arch $A -mmacosx-version-min=11.0" --extra-ldflags="-arch $A -mmacosx-version-min=11.0" &&
+        make -j8 && make install)
+    done
+    mkdir -p universal/lib && cp -R arm64/install/include universal/
+    for L in libavcodec libavformat libavutil; do
+      lipo -create arm64/install/lib/$L.a x86_64/install/lib/$L.a -output universal/lib/$L.a
+    done
 
-Check the value for macosx-version-min matches that used by the rest of the project.
+Then pass `-DFFMPEG_ROOT=<scratch>/universal` to cmake (see Building). With `FFMPEG_ROOT` unset, the in-tree build of external/ffmpeg/FFmpeg is used, as on Windows.
 
 ### macOS specific
 
-For macos, the Boost library is needed for missing std::filesystem support in Mojave and earlier. The homebrew installation is recommended (requires [Homebrew](https://brew.sh)).
-
-    brew install boost
+The minimum macOS is 11.0 (the first release with arm64). `std::filesystem` is used directly; Boost is no longer needed.
 
 ##  Building
 
@@ -135,7 +141,7 @@ First create a build directory at the top level, and move into it
 
 Invoke cmake to create makefiles etc for a Release build
 
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 ..
+    cmake -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DFFMPEG_ROOT=<scratch>/universal ..
 
 Then do a build with
 
@@ -143,7 +149,9 @@ Then do a build with
 
 Alternatively to create an Xcode project
 
-    cmake -DCMAKE_OSX_ARCHITECTURES=x86_64 -G Xcode ..
+    cmake "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DFFMPEG_ROOT=<scratch>/universal -G Xcode ..
+
+To build only the After Effects output module (no Premiere SDK needed), add `-DFoundation_BUILD_PREMIERE=OFF` and build the `AfterEffectsPlugin` target.
 
 Then open the generated Xcode project.
 

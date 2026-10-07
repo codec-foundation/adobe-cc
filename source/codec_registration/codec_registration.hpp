@@ -4,6 +4,7 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <memory>
 #include <vector>
 #include <string>
 

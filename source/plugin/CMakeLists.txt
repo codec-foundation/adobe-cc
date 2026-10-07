@@ -16,4 +16,8 @@ add_definitions(-DCODEC_NAME="${Foundation_CODEC_NAME}")
 
 add_subdirectory(adobe_shared)
 add_subdirectory(after_effects)
-add_subdirectory(premiere)
+# off lets the After Effects output module build without the Premiere SDK
+option(Foundation_BUILD_PREMIERE "Build the Premiere / Media Encoder exporter and importer" ON)
+if (Foundation_BUILD_PREMIERE)
+    add_subdirectory(premiere)
+endif ()

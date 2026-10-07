@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include "util.hpp"
 
 template<int SRC_FOR_DEST0, int SRC_FOR_DEST1, int SRC_FOR_DEST2, int SRC_FOR_DEST3,

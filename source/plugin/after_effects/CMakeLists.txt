@@ -96,6 +96,12 @@ if (MSVC)
 endif(MSVC)
 
 if (APPLE)
+    # export only the AE entry point, so the statically linked FFmpeg's av_* / ff_*
+    # symbols can't collide with the FFmpeg copies other plugins load into AE
+    target_link_options(AfterEffectsPlugin PRIVATE "LINKER:-exported_symbol,_EntryPointFunc")
+endif(APPLE)
+
+if (APPLE)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mac/SettingsViewController.xib.in ${CMAKE_BINARY_DIR}/SettingsViewController.xib)
 endif (APPLE)
 

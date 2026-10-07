@@ -1017,7 +1017,7 @@ EntryPointFunc(
                                                     &funcs));
 
     ERR(suites.UtilitySuite3()->AEGP_RegisterWithAEGP(	NULL,
-                                                       "NotchLC",
+                                                       FOUNDATION_CODEC_NAME,   // was hardcoded "NotchLC" - clashed with the real NotchLC plugin
                                                        &S_mem_id));
 
     API_ERRORHANDLER_END();

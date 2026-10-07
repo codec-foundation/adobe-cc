@@ -11,17 +11,19 @@
 extern "C" {
 #include <libavutil/channel_layout.h>
 
-// !!! needed for libavformat/internal.h
-#ifdef _WIN32
-#include <io.h>
-#include <direct.h>
-#endif
-// !!! needed to fool 4CC validation
-#include <libavformat/internal.h>
 }
 
 #include "logging.hpp"
 #include "movie_writer.hpp"
+
+// !!! needed to fool 4CC validation. avformat.h only forward-declares this; the
+// layout below is libavformat/internal.h's, unchanged since FFmpeg 0.x. Declaring
+// it here keeps the build off FFmpeg's private headers, which an installed FFmpeg
+// (e.g. a universal macOS build) doesn't ship.
+struct AVCodecTag {
+    enum AVCodecID id;
+    unsigned int tag;
+};
 
 #undef av_err2str
 std::string av_err2str(int errnum)
