@@ -21,7 +21,9 @@ std::vector<Presets::PathType> Presets::getDestinationDirectoryPaths()
 		{
 			for (const auto& entry : std::filesystem::directory_iterator(ame, error))
 			{
-				if (entry.is_directory(error))
+				const auto name = entry.path().filename().wstring();
+				// version folders only ("26.0"), not e.g. "Adobe Adobe Media Encoder Audio Previews"
+				if (entry.is_directory(error) && !name.empty() && iswdigit(name[0]))
 				{
 					const auto path = entry.path() / "Presets";
 					paths.push_back(path);

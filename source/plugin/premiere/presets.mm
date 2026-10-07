@@ -1,4 +1,6 @@
 #include "presets.hpp"
+#include <cctype>
+#include <filesystem>
 #include <Foundation/Foundation.h>
 
 std::vector<Presets::PathType> Presets::getDestinationDirectoryPaths()
@@ -23,6 +25,29 @@ std::vector<Presets::PathType> Presets::getDestinationDirectoryPaths()
                         {
                             paths.push_back([[path stringByExpandingTildeInPath] cStringUsingEncoding:NSUTF8StringEncoding]);
                         }
+                    }
+                }
+            }
+        }
+
+        // Current Media Encoder (2020+) keeps user presets in ~/Documents/Adobe/Adobe Media Encoder/<version>/Presets,
+        // as on Windows; the paths.plist above no longer exists on these installs.
+        NSArray *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documents = [docs firstObject];
+        if (documents)
+        {
+            std::filesystem::path ame([documents fileSystemRepresentation]);
+            ame = ame / "Adobe" / "Adobe Media Encoder";
+            std::error_code error;
+            if (std::filesystem::is_directory(ame, error))
+            {
+                for (const auto& entry : std::filesystem::directory_iterator(ame, error))
+                {
+                    const auto name = entry.path().filename().string();
+                    // version folders only ("26.0"), not e.g. "Adobe Adobe Media Encoder Audio Previews"
+                    if (entry.is_directory(error) && !name.empty() && std::isdigit(static_cast<unsigned char>(name[0])))
+                    {
+                        paths.push_back((entry.path() / "Presets").string());   // PathType is std::string on macOS
                     }
                 }
             }
